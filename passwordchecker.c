@@ -63,6 +63,24 @@ ldap_sasl_interact (LDAP *ld,
 }
 
 static gboolean
+get_date_from_ad_timestamp (gchar *s,
+                            gchar **output)
+{
+    if (!s)
+        return FALSE;
+    
+    guint64 ad_timestamp = g_ascii_strtoull (s, NULL, 10);
+    guint64 nanoseconds = (ad_timestamp - 116444736000000000ULL) * 100;
+    time_t seconds = nanoseconds / 1000000000;
+
+    GDateTime *date_time = g_date_time_new_from_unix_local (seconds); // local???
+    *output = g_date_time_format(date_time, "%d-%m-%Y %H:%M:%S");
+
+    g_date_time_unref (date_time);
+    return TRUE;
+}
+
+static gboolean
 set_options_for_ld (LDAP *ld)
 {
     if (ld == NULL)
@@ -121,7 +139,7 @@ get_value_of_attr (LDAP *ld,
 
     rc = ldap_search_ext_s (ld,
                             base_dn,
-                            LDAP_SCOPE_SUBTREE,
+                            LDAP_SCOPE_SUBTREE, // subtree or base???
                             filter,
                             attrs,
                             0,
@@ -202,8 +220,12 @@ main ()
     if (!value)
         g_print ("No value\n");
     else {
-        g_print ("%s\n", value);
+        gchar *res = NULL;
+        get_date_from_ad_timestamp (value, &res);
+        g_print ("%s\n", res);
+
         g_free (value);
+        g_free (res);
     }
 
     goto close;
