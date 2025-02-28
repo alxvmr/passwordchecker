@@ -63,8 +63,8 @@ ldap_sasl_interact (LDAP *ld,
 }
 
 static gboolean
-get_date_from_ad_timestamp (gchar *s,
-                            gchar **output)
+get_date_from_ad_timestamp (gchar     *s,
+                            GDateTime **output)
 {
     if (!s)
         return FALSE;
@@ -73,10 +73,7 @@ get_date_from_ad_timestamp (gchar *s,
     guint64 nanoseconds = (ad_timestamp - 116444736000000000ULL) * 100;
     time_t seconds = nanoseconds / 1000000000;
 
-    GDateTime *date_time = g_date_time_new_from_unix_local (seconds); // local???
-    *output = g_date_time_format(date_time, "%d-%m-%Y %H:%M:%S");
-
-    g_date_time_unref (date_time);
+    *output = g_date_time_new_from_unix_local (seconds); // local???
     return TRUE;
 }
 
@@ -155,6 +152,7 @@ get_value_of_attr (LDAP *ld,
 
     if (rc != LDAP_SUCCESS) {
         g_print ("ldap_search_ext_s failed: %s\n", ldap_err2string (rc));
+        ldap_msgfree (result);
         return FALSE;
     }
 
@@ -179,16 +177,20 @@ get_value_of_attr (LDAP *ld,
     return TRUE;
 }
 
-int
-main ()
+static gboolean
+get_date_time (gchar     *url,
+               gchar     *base_dn,
+               GDateTime **datetime)
 {
     LDAP *ld;
     gint rc, rc_set_opt;
     gchar *value;
-    gchar *url = "ldap://srt-dc1.smb.basealt.ru";
-    gchar *base_dn = "dc=smb,dc=basealt,dc=ru";
+
     gchar *filter = "(&(!(userAccountControl:1.2.840.113556.1.4.803:=65536))(sAMAccountName=alekseevamo))";
     gchar *attr = "msDS-UserPasswordExpiryTimeComputed";
+
+    if (!url || !base_dn)
+        return FALSE;
 
     rc = ldap_initialize (&ld, url);
     if (rc != LDAP_SUCCESS) {
@@ -220,12 +222,22 @@ main ()
     if (!value)
         g_print ("No value\n");
     else {
-        gchar *res = NULL;
-        get_date_from_ad_timestamp (value, &res);
-        g_print ("%s\n", res);
+        GDateTime *res = NULL;
+        if (get_date_from_ad_timestamp (value, &res)) {
+            *datetime = res;
+
+            g_free (value);
+
+            rc = ldap_unbind_ext_s (ld, NULL, NULL);
+            ld = NULL;
+            if (rc != 0) {
+                g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
+            }
+            
+            return TRUE;
+        }
 
         g_free (value);
-        g_free (res);
     }
 
     goto close;
@@ -235,8 +247,27 @@ close:
     ld = NULL;
     if (rc != 0) {
         g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
-        return EXIT_FAILURE;
     }
+
+    return FALSE;
+}
+
+int
+main ()
+{
+    GDateTime *dt = NULL;
+    gchar *dt_str = NULL;
+
+    get_date_time ("ldap://srt-dc1.smb.basealt.ru", "dc=smb,dc=basealt,dc=ru", &dt);
+
+    if (!dt)
+        return 1;
+
+    dt_str = g_date_time_format(dt, "%d-%m-%Y %H:%M:%S");
+    g_print ("%s\n", dt_str);
+
+    g_date_time_unref (dt);
+    g_free (dt_str);
 
     return 0;
 }
