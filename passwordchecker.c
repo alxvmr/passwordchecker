@@ -1,10 +1,13 @@
 #include "passwordchecker-ldap.h"
 #include <math.h>
 
-static gint64 START_WARNING_TIME;
-static gint64 WARNING_FREQ = 1; //seconds
+static gint64 START_WARNING_TIME; //hours
+static gint64 WARNING_FREQ;       //hours
 static gboolean TIMER_ON = FALSE;
 static guint TIMER_WARNING_ID = 0;
+static guint LDAP_SEARCH_TIME = 24;
+
+static gint TIME_CONV = 3600;
 
 static void
 cleanup (GSettings *settings,
@@ -46,24 +49,19 @@ check_password (void *data)
     diff_hours = diff_sec / 3600;
     diff_hours = floor (diff_hours);
 
-    g_print ("current_time: %s\n", g_date_time_format(current_time, "%d-%m-%Y %H:%M:%S"));
-    g_print ("password_time: %s\n\n", g_date_time_format(dt, "%d-%m-%Y %H:%M:%S"));
-    g_print ("diff_hours = %ld\n", diff_hours);
-    g_print ("start_warning = %ld\n", START_WARNING_TIME);
+    // g_print ("current_time: %s\n", g_date_time_format(current_time, "%d-%m-%Y %H:%M:%S"));
+    // g_print ("password_time: %s\n\n", g_date_time_format(dt, "%d-%m-%Y %H:%M:%S"));
+    // g_print ("diff_hours = %ld\n", diff_hours);
+    // g_print ("start_warning = %ld\n", START_WARNING_TIME);
 
-    if (START_WARNING_TIME >= diff_hours) {
-        if (TIMER_ON) {
-            g_print ("!!!!!!!! Remove timer\n");
-            g_source_remove (TIMER_WARNING_ID);
-        }
-        TIMER_ON = TRUE;
-        print_warning ();
-        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, print_warning, NULL);
+    if (TIMER_WARNING_ID != 0) {
+        g_source_remove (TIMER_WARNING_ID);
+        TIMER_WARNING_ID = 0;
     }
 
-    if (TIMER_ON) {
-        g_source_remove (TIMER_WARNING_ID);
-        TIMER_ON = FALSE;
+    if (START_WARNING_TIME >= diff_hours) {
+        print_warning ();
+        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, print_warning, NULL);
     }
 
     g_date_time_unref (dt);
@@ -106,6 +104,9 @@ settings_changed (GSettings *settings,
         if (g_strcmp0 (key, "start-warning-time") == 0) {
             START_WARNING_TIME = value;
         }
+        if (g_strcmp0 (key, "warning-frequencies") == 0) {
+            WARNING_FREQ = value * TIME_CONV;
+        }
     }
 
     check_password (pwc_ldap);
@@ -132,6 +133,7 @@ load_gsettings (gchar               *schema_name,
     url = g_settings_get_string (*settings, "url");
     base_dn = g_settings_get_string (*settings, "base-dn");
     START_WARNING_TIME = g_settings_get_int64 (*settings, "start-warning-time");
+    WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV;
 
     passwordchecker_ldap_set_url (url, pwc_ldap);
     passwordchecker_ldap_set_base_dn (base_dn, pwc_ldap);
@@ -158,7 +160,7 @@ main ()
         return EXIT_FAILURE;
 
     check_password (pwc_ldap);
-    TIMER_WARNING_ID = g_timeout_add_seconds (1, check_password, pwc_ldap);
+    g_timeout_add_seconds (LDAP_SEARCH_TIME * TIME_CONV, check_password, pwc_ldap);
 
     GMainLoop *loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (loop);
