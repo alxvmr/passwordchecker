@@ -264,18 +264,24 @@ get_username ()
     return g_strdup (pwd.pw_name);
 }
 
-static gboolean
+gboolean
 passwordchecker_ldap_set_url (gchar               *url,
                               PasswordcheckerLdap *self)
 {
-    self->url = url;
+    if (g_strcmp0 (url, "") == 0)
+        self->url = NULL;
+    else
+        self->url = g_strdup (url);
 }
 
-static gboolean
+gboolean
 passwordchecker_ldap_set_base_dn (gchar               *base_dn,
                                   PasswordcheckerLdap *self)
 {
-    self->base_dn = base_dn;
+    if (g_strcmp0 (base_dn, "") == 0)
+        self->base_dn = NULL;
+    else
+        self->base_dn = g_strdup (base_dn);
 }
 
 static void
