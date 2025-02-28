@@ -4,7 +4,7 @@ project(passwordchecker VERSION 0.1.0 LANGUAGES C)
 find_package (PkgConfig REQUIRED)
 pkg_check_modules (GIO REQUIRED gio-2.0)
 
-set (SOURCES passwordchecker.c)
+set (SOURCES passwordchecker.c passwordchecker-ldap.c)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 
