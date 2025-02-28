@@ -239,10 +239,12 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
     goto close;
 
 close:
-    rc = ldap_unbind_ext_s (ld, NULL, NULL);
-    ld = NULL;
-    if (rc != 0) {
-        g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
+    if (ld != NULL) {
+        rc = ldap_unbind_ext_s (ld, NULL, NULL);
+        ld = NULL;
+        if (rc != 0) {
+            g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
+        }
     }
 
     return FALSE;
@@ -268,6 +270,7 @@ gboolean
 passwordchecker_ldap_set_url (gchar               *url,
                               PasswordcheckerLdap *self)
 {
+    g_free (self->url);
     if (g_strcmp0 (url, "") == 0)
         self->url = NULL;
     else
@@ -278,6 +281,7 @@ gboolean
 passwordchecker_ldap_set_base_dn (gchar               *base_dn,
                                   PasswordcheckerLdap *self)
 {
+    g_free (self->base_dn);
     if (g_strcmp0 (base_dn, "") == 0)
         self->base_dn = NULL;
     else
