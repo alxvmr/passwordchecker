@@ -49,6 +49,8 @@ activate (GtkApplication* app,
     GSettingsSchema *schema = g_settings_schema_source_lookup (g_settings_schema_source_get_default (), SCHEMA_NAME, TRUE);
     GSettingsSchemaKey *key_url = g_settings_schema_get_key (schema, "url");
     GSettingsSchemaKey *key_base_dn = g_settings_schema_get_key (schema, "base-dn");
+    GSettingsSchemaKey *key_start = g_settings_schema_get_key (schema, "start-warning-time");
+    GSettingsSchemaKey *key_freq = g_settings_schema_get_key (schema, "warning-frequencies");
 
     GtkBuilder *builder = gtk_builder_new ();
     gtk_builder_add_from_file (builder, "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/ui/page_connection.glade", &error);
@@ -70,7 +72,7 @@ activate (GtkApplication* app,
 
     GtkWidget *notebook = gtk_notebook_new ();
 
-    /* page 1*/
+    /* page 1 */
     GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
 
     GtkWidget *label1 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label1"));
@@ -89,6 +91,31 @@ activate (GtkApplication* app,
 
     g_settings_bind (pwd_ui->settings, "url", pwd_ui->url, "text", G_SETTINGS_BIND_GET);
     g_settings_bind (pwd_ui->settings, "base-dn", pwd_ui->base_dn, "text", G_SETTINGS_BIND_GET);
+
+    /* page 2 */
+    gtk_builder_add_from_file (builder, "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/ui/page_application.glade", &error);
+    if (error){
+        g_printerr("Error loading Glade file: %s\n", error->message);
+        g_clear_error(&error);
+        return;
+    }
+
+    GtkWidget *button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
+
+    GtkWidget *label_start = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label1"));
+    gtk_label_set_text (GTK_LABEL (label_start), g_settings_schema_key_get_summary (key_start));
+    gtk_widget_set_tooltip_text (label_start, g_settings_schema_key_get_description (key_start));
+
+    GtkWidget *label_freq = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label2"));
+    gtk_label_set_text (GTK_LABEL (label_freq), g_settings_schema_key_get_summary (key_freq));
+    gtk_widget_set_tooltip_text (label_freq, g_settings_schema_key_get_description (key_freq));
+
+    GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
+    GtkWidget *label_page_application = gtk_label_new ("Application");
+    gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
+
+    gtk_button_set_label (GTK_BUTTON (button_app), "Apply application settings");
+    // g_signal_connect (G_OBJECT (button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
   
     gtk_box_append (GTK_BOX (main_container), notebook);
     gtk_window_set_child (GTK_WINDOW (window), main_container);
