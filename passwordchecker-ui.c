@@ -8,7 +8,71 @@ typedef struct _PasswordcheckerUI {
     GSettings *settings;
     GtkWidget *url;
     GtkWidget *base_dn;
+    GtkWidget *start_warning_time_days;
+    GtkWidget *warning_frequencies_days;
+    GtkWidget *warning_frequencies_hours;
+    GtkWidget *warning_frequencies_min;
 } PasswordCheckerUI;
+
+enum {
+    TO_MINS,
+    TO_HOURS,
+    TO_DAYS
+};
+
+static gboolean
+convert_x (GValue   *value,
+           GVariant *variant,
+           gpointer  user_data)
+{
+	gint64 to_set = g_variant_get_int64 (variant);
+	gchar *str;
+
+	str = g_strdup_printf ("%ld", to_set);
+	g_value_set_string (value, str);
+	g_free (str);
+
+	return TRUE;
+}
+
+static gboolean
+convert_mins (GValue   *value,
+              GVariant *variant,
+              gpointer  user_data)
+{
+    gint convert_type = GPOINTER_TO_INT (user_data);
+
+    gint64 mins = g_variant_get_int64 (variant);
+    gint16 days;
+    gint16 hours;
+    gint16 mins_out;
+    gchar *str = NULL;
+
+    days = mins / 1440;
+    mins %= 1440;
+    hours = mins / 60;
+    mins_out = mins % 60;
+
+    switch (convert_type)
+    {
+        case TO_MINS:
+            str = g_strdup_printf ("%d", mins_out);
+            break;
+        case TO_HOURS:
+            str = g_strdup_printf ("%d", hours);
+            break;
+        case TO_DAYS:
+            str = g_strdup_printf ("%d", days);
+            break;
+        default:
+            return FALSE;
+    }
+
+    g_value_set_string (value, str);
+    g_free (str);
+
+    return TRUE;
+}
 
 static void
 send_notification (const gchar       *title,
@@ -100,6 +164,11 @@ activate (GtkApplication* app,
         return;
     }
 
+    pwd_ui->start_warning_time_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry1-days"));
+    pwd_ui->warning_frequencies_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-days"));
+    pwd_ui->warning_frequencies_hours = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-hours"));
+    pwd_ui->warning_frequencies_min = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-min"));
+
     GtkWidget *button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
 
     GtkWidget *label_start = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label1"));
@@ -116,6 +185,46 @@ activate (GtkApplication* app,
 
     gtk_button_set_label (GTK_BUTTON (button_app), "Apply application settings");
     // g_signal_connect (G_OBJECT (button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
+
+    g_settings_bind_with_mapping (pwd_ui->settings,
+                                  "start-warning-time",
+                                  pwd_ui->start_warning_time_days,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_x,
+                                  NULL,
+                                  pwd_ui,
+                                  NULL);
+
+    g_settings_bind_with_mapping (pwd_ui->settings,
+                                  "warning-frequencies",
+                                  pwd_ui->warning_frequencies_days,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_mins,
+                                  NULL,
+                                  GINT_TO_POINTER (TO_DAYS),
+                                  NULL);
+
+    g_settings_bind_with_mapping (pwd_ui->settings,
+                                  "warning-frequencies",
+                                  pwd_ui->warning_frequencies_hours,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_mins,
+                                  NULL,
+                                  GINT_TO_POINTER (TO_HOURS),
+                                  NULL);
+
+    g_settings_bind_with_mapping (pwd_ui->settings,
+                                  "warning-frequencies",
+                                  pwd_ui->warning_frequencies_min,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_mins,
+                                  NULL,
+                                  GINT_TO_POINTER (TO_MINS),
+                                  NULL);                                
   
     gtk_box_append (GTK_BOX (main_container), notebook);
     gtk_window_set_child (GTK_WINDOW (window), main_container);
