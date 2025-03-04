@@ -1,13 +1,13 @@
 #include "passwordchecker-ldap.h"
 #include <math.h>
 
-static gint64 START_WARNING_TIME; //hours
-static gint64 WARNING_FREQ;       //hours
-static gboolean TIMER_ON = FALSE;
+static gint64 START_WARNING_TIME; //days
+static gint64 WARNING_FREQ;       //mins
 static guint TIMER_WARNING_ID = 0;
-static guint LDAP_SEARCH_TIME = 24;
+static guint LDAP_SEARCH_TIME = 24; //hours
 
-static gint TIME_CONV = 3600;
+static gint TIME_CONV_START = 24;
+static gint TIME_CONV_FREQ = 60;
 
 static void
 cleanup (GSettings *settings,
@@ -102,10 +102,10 @@ settings_changed (GSettings *settings,
     if (g_variant_type_equal (type, G_VARIANT_TYPE_INT64)) {
         const gint64 value = g_variant_get_int64 (value_gv);
         if (g_strcmp0 (key, "start-warning-time") == 0) {
-            START_WARNING_TIME = value;
+            START_WARNING_TIME = value * TIME_CONV_START;
         }
         if (g_strcmp0 (key, "warning-frequencies") == 0) {
-            WARNING_FREQ = value * TIME_CONV;
+            WARNING_FREQ = value * TIME_CONV_FREQ;
         }
     }
 
@@ -132,8 +132,8 @@ load_gsettings (gchar               *schema_name,
 
     url = g_settings_get_string (*settings, "url");
     base_dn = g_settings_get_string (*settings, "base-dn");
-    START_WARNING_TIME = g_settings_get_int64 (*settings, "start-warning-time");
-    WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV;
+    START_WARNING_TIME = g_settings_get_int64 (*settings, "start-warning-time") * TIME_CONV_START;
+    WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV_FREQ;
 
     passwordchecker_ldap_set_url (url, pwc_ldap);
     passwordchecker_ldap_set_base_dn (base_dn, pwc_ldap);
@@ -160,7 +160,7 @@ main ()
         return EXIT_FAILURE;
 
     check_password (pwc_ldap);
-    g_timeout_add_seconds (LDAP_SEARCH_TIME * TIME_CONV, check_password, pwc_ldap);
+    g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password, pwc_ldap);
 
     GMainLoop *loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (loop);
