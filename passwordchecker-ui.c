@@ -102,6 +102,67 @@ cb_button_conn (GtkWidget *button,
     send_notification ("PasswordChecker: change settings", "Connection settings have been successfully changed", pwd_ui);
 }
 
+static gint64
+convert_str_2_gint64 (gchar  *str,
+                      gint64 *out)
+{
+    gchar *end_ptr = NULL;
+
+    *out = g_ascii_strtoll (str, &end_ptr, 10);
+    if (end_ptr == str) {
+        g_printerr ("Error converting string to number\n");
+        g_free (str);
+        g_free (end_ptr);
+        return FALSE;
+    }
+
+    g_free (str);
+    return TRUE;
+}
+
+static void
+cb_button_app (GtkWidget *button,
+               gpointer   user_data)
+{
+    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
+
+    const gchar *start_warning_time_days = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->start_warning_time_days));
+
+    const gchar *warning_freq_mins = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->warning_frequencies_min));
+    const gchar *warning_freq_hours = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->warning_frequencies_hours));
+    const gchar *warning_freq_days = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->warning_frequencies_days));
+
+    gint64 freq_min;
+    gint64 freq_hours;
+    gint64 freq_days;
+    gint64 gint64_start_warning_time = -1;
+    gint64 gint64_warning_freq = -1;
+
+    if (! convert_str_2_gint64 (g_strdup (start_warning_time_days), &gint64_start_warning_time)) {
+        gint64_start_warning_time = -1;
+    }
+
+    if (convert_str_2_gint64 (g_strdup (warning_freq_mins), &freq_min)) {
+        if (convert_str_2_gint64 (g_strdup (warning_freq_hours), &freq_hours)) {
+            freq_hours *= 60;
+            if (convert_str_2_gint64 (g_strdup (warning_freq_days), &freq_days)) {
+                freq_days *= 1440;
+                gint64_warning_freq = freq_min + freq_hours + freq_days;
+            }
+        }
+    }
+
+    if (gint64_start_warning_time != -1 && gint64_warning_freq != -1) {
+        g_settings_set_int64 (pwd_ui->settings, "start-warning-time", gint64_start_warning_time);
+        g_settings_set_int64 (pwd_ui->settings, "warning-frequencies", gint64_warning_freq);
+
+        send_notification ("PasswordChecker: change settings", "Application settings have been successfully changed", pwd_ui);
+    }
+    else {
+        send_notification ("PasswordChecker: change settings", "The application settings have not been applied.\nAn error occurred while saving the settings", pwd_ui);
+    }
+}
+
 static void
 activate (GtkApplication* app,
           gpointer        user_data)
@@ -184,7 +245,7 @@ activate (GtkApplication* app,
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
 
     gtk_button_set_label (GTK_BUTTON (button_app), "Apply application settings");
-    // g_signal_connect (G_OBJECT (button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
+    g_signal_connect (G_OBJECT (button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
 
     g_settings_bind_with_mapping (pwd_ui->settings,
                                   "start-warning-time",
