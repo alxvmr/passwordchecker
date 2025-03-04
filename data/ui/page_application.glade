@@ -48,11 +48,25 @@
               </object>
             </child>
             <child>
-              <object class="GtkEntry" id="page2-entry1-hours"/>
+              <object class="GtkEntry" id="page2-entry1-hours">
+                <property name="sensitive">False</property>
+              </object>
             </child>
             <child>
               <object class="GtkLabel">
                 <property name="label">hours</property>
+                <property name="sensitive">False</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkEntry" id="page2-entry1-min">
+                <property name="sensitive">False</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label">min</property>
+                <property name="sensitive">False</property>
               </object>
             </child>
             <layout>
@@ -80,6 +94,14 @@
             <child>
               <object class="GtkLabel">
                 <property name="label">hours</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkEntry" id="page2-entry2-min"/>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label">min</property>
               </object>
             </child>
             <layout>
