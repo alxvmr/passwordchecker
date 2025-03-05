@@ -220,9 +220,6 @@ cb_button_app (GtkWidget *button,
 
         send_notification ("PasswordChecker: change settings", "Application settings have been successfully changed", pwd_ui);
     }
-    else {
-        send_notification ("PasswordChecker: change settings", "The application settings have not been applied.\nAn error occurred while saving the settings", pwd_ui);
-    }
 }
 
 static void
