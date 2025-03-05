@@ -12,6 +12,8 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *warning_frequencies_days;
     GtkWidget *warning_frequencies_hours;
     GtkWidget *warning_frequencies_min;
+    GtkWidget *error_start;
+    GtkWidget *error_freq;
 } PasswordCheckerUI;
 
 enum {
@@ -102,13 +104,40 @@ cb_button_conn (GtkWidget *button,
     send_notification ("PasswordChecker: change settings", "Connection settings have been successfully changed", pwd_ui);
 }
 
+static gboolean
+is_numeric (gchar *str)
+{
+    GRegex *regex = g_regex_new ("^[0-9]+$", 0, 0, NULL);
+    gboolean result = g_regex_match (regex, str, 0, NULL);
+
+    g_regex_unref (regex);
+    return result;
+}
+
 static gint64
-convert_str_2_gint64 (gchar  *str,
-                      gint64 *out)
+convert_str_2_gint64 (gchar   *str,
+                      gint64  *out,
+                      gchar  **error)
 {
     gchar *end_ptr = NULL;
 
+    if (str == NULL || *str == '\0') {
+        *error = g_strdup ("Time units can't be empty");
+        return FALSE;
+    }
+
+    if (*str == '-') {
+        *error = g_strdup ("Time units can't be negative");
+        return FALSE;
+    }
+
+    if (!is_numeric (str)) {
+        *error = g_strdup ("The record contains invalid characters");
+        return FALSE;
+    }
+
     *out = g_ascii_strtoll (str, &end_ptr, 10);
+
     if (end_ptr == str) {
         g_printerr ("Error converting string to number\n");
         g_free (str);
@@ -126,6 +155,9 @@ cb_button_app (GtkWidget *button,
 {
     PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
 
+    gtk_widget_set_visible (pwd_ui->error_start, FALSE);
+    gtk_widget_set_visible (pwd_ui->error_freq, FALSE);
+
     const gchar *start_warning_time_days = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->start_warning_time_days));
 
     const gchar *warning_freq_mins = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->warning_frequencies_min));
@@ -138,18 +170,32 @@ cb_button_app (GtkWidget *button,
     gint64 gint64_start_warning_time = -1;
     gint64 gint64_warning_freq = -1;
 
-    if (! convert_str_2_gint64 (g_strdup (start_warning_time_days), &gint64_start_warning_time)) {
+    gchar *error_mess = NULL;
+
+    if (! convert_str_2_gint64 (g_strdup (start_warning_time_days), &gint64_start_warning_time, &error_mess)) {
         gint64_start_warning_time = -1;
+
+        gtk_widget_set_visible (pwd_ui->error_start, TRUE);
+        gtk_widget_set_tooltip_text (pwd_ui->error_start, error_mess);
     }
 
-    if (convert_str_2_gint64 (g_strdup (warning_freq_mins), &freq_min)) {
-        if (convert_str_2_gint64 (g_strdup (warning_freq_hours), &freq_hours)) {
+    error_mess = NULL;
+
+    if (convert_str_2_gint64 (g_strdup (warning_freq_mins), &freq_min, &error_mess)) {
+        if (convert_str_2_gint64 (g_strdup (warning_freq_hours), &freq_hours, &error_mess)) {
             freq_hours *= 60;
-            if (convert_str_2_gint64 (g_strdup (warning_freq_days), &freq_days)) {
+            if (convert_str_2_gint64 (g_strdup (warning_freq_days), &freq_days, &error_mess)) {
                 freq_days *= 1440;
                 gint64_warning_freq = freq_min + freq_hours + freq_days;
             }
         }
+    } 
+    
+    if (error_mess) {
+        gtk_widget_set_visible (pwd_ui->error_freq, TRUE);
+        gtk_widget_set_tooltip_text (pwd_ui->error_freq, error_mess);
+
+        g_free (error_mess);
     }
 
     if (gint64_start_warning_time != -1 && gint64_warning_freq != -1) {
@@ -224,6 +270,12 @@ activate (GtkApplication* app,
         g_clear_error(&error);
         return;
     }
+
+    pwd_ui->error_start = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error1"));
+    pwd_ui->error_freq = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error2"));
+
+    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_start), "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/icons/error.png");
+    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_freq), "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/icons/error.png");
 
     pwd_ui->start_warning_time_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry1-days"));
     pwd_ui->warning_frequencies_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-days"));
