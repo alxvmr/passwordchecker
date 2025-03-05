@@ -447,7 +447,7 @@ main (int    argc,
     PasswordCheckerUI *pwdui = g_new (PasswordCheckerUI, 1);
     pwdui->settings = settings;
 
-    pwdui->id = "org.altlinux.passwordchecker";
+    pwdui->id = "org.altlinux.passwordchecker-settings";
 
     pwdui->app = gtk_application_new (pwdui->id, G_APPLICATION_FLAGS_NONE);
 

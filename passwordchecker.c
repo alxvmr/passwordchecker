@@ -9,6 +9,17 @@ static guint LDAP_SEARCH_TIME = 24; //hours
 static gint TIME_CONV_START = 24;
 static gint TIME_CONV_FREQ = 60;
 
+typedef struct _PasswordChecker {
+    GApplication *app;
+    const gchar *app_id;
+
+    PasswordcheckerLdap *pwc_ldap;
+    GSettings *settings;
+    gulong handler_id;
+} PasswordChecker;
+
+PasswordChecker *pwc = NULL;
+
 static void
 cleanup (GSettings *settings,
          gulong    handler_id)
@@ -18,9 +29,15 @@ cleanup (GSettings *settings,
 }
 
 gboolean
-print_warning ()
+send_warning ()
 {
-    g_print ("CHANGE PASSWORD!!!\n");
+    GNotification *notification = g_notification_new ("Password change required");
+    g_notification_set_body (notification, "Your password expires on 01/01/01");
+
+    g_application_send_notification (G_APPLICATION (pwc->app), pwc->app_id, notification);
+
+    g_object_unref (notification);
+
     return TRUE;
 }
 
@@ -60,8 +77,8 @@ check_password (void *data)
     }
 
     if (START_WARNING_TIME >= diff_hours) {
-        print_warning ();
-        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, print_warning, NULL);
+        send_warning ();
+        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, NULL);
     }
 
     g_date_time_unref (dt);
@@ -144,30 +161,44 @@ load_gsettings (gchar               *schema_name,
     return TRUE;
 }
 
+static gint
+activate (GApplication *app,
+          gpointer      user_data)
+{
+    PasswordChecker *pwc = (PasswordChecker *) user_data;
+
+    pwc->pwc_ldap = passwordchecker_ldap_new (NULL, NULL);
+
+    if (!load_gsettings ("org.altlinux.passwordchecker", pwc->pwc_ldap, &pwc->settings, &pwc->handler_id))
+        return EXIT_FAILURE;
+
+    check_password (pwc->pwc_ldap);
+    g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password, pwc->pwc_ldap);
+}
+
 int
 main ()
 {
-    GDateTime *dt = NULL;
-    gchar *dt_str = NULL;
-    PasswordcheckerLdap *pwc_ldap = NULL;
-    GSettings *settings = NULL;
-    gulong handler_id;
     // PasswordcheckerLdap *pwc_ldap = passwordchecker_ldap_new ("ldap://srt-dc1.smb.basealt.ru", "dc=smb,dc=basealt,dc=ru");
-    int rc;
+    gint rc;
 
-    pwc_ldap = passwordchecker_ldap_new (NULL, NULL);
-    if (!load_gsettings ("org.altlinux.passwordchecker", pwc_ldap, &settings, &handler_id))
-        return EXIT_FAILURE;
+    pwc = g_new (PasswordChecker, 1);
+    pwc->app_id = "org.altlinux.passwordchecker";
 
-    check_password (pwc_ldap);
-    g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password, pwc_ldap);
+    pwc->app = g_application_new (pwc->app_id, G_APPLICATION_FLAGS_NONE);
+
+    g_signal_connect (pwc->app, "activate", G_CALLBACK (activate), pwc);
+
+    rc = g_application_run (pwc->app, 0, NULL);
 
     GMainLoop *loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (loop);
 
     g_main_loop_unref (loop);
-    g_object_unref (pwc_ldap);
-    cleanup (settings, handler_id);
+    g_object_unref (pwc->pwc_ldap);
+    cleanup (pwc->settings, pwc->handler_id);
+    g_object_unref (pwc->app);
+    g_free (pwc);
 
-    return 0;
-}
+    return rc;
+} 
