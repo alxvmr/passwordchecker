@@ -236,7 +236,7 @@ activate (GtkApplication* app,
     GSettingsSchemaKey *key_freq = g_settings_schema_get_key (schema, "warning-frequencies");
 
     GtkBuilder *builder = gtk_builder_new ();
-    gtk_builder_add_from_file (builder, "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/ui/page_connection.glade", &error);
+    gtk_builder_add_from_file (builder, "../data/ui/page_connection.glade", &error);
     if (error){
         g_printerr("Error loading Glade file: %s\n", error->message);
         g_clear_error(&error);
@@ -277,7 +277,7 @@ activate (GtkApplication* app,
     g_settings_bind (pwd_ui->settings, "base-dn", pwd_ui->base_dn, "text", G_SETTINGS_BIND_GET);
 
     /* page 2 */
-    gtk_builder_add_from_file (builder, "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/ui/page_application.glade", &error);
+    gtk_builder_add_from_file (builder, "../data/ui/page_application.glade", &error);
     if (error){
         g_printerr("Error loading Glade file: %s\n", error->message);
         g_clear_error(&error);
@@ -287,8 +287,8 @@ activate (GtkApplication* app,
     pwd_ui->error_start = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error1"));
     pwd_ui->error_freq = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error2"));
 
-    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_start), "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/icons/error.png");
-    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_freq), "/home/SMB.BASEALT.RU/alekseevamo/Develop/passwordchecker/data/icons/error.png");
+    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_start), "../data/icons/error.png");
+    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_freq), "../data/icons/error.png");
 
     pwd_ui->start_warning_time_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry1-days"));
     pwd_ui->warning_frequencies_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-days"));
