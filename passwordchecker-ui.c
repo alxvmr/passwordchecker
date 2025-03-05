@@ -22,6 +22,18 @@ enum {
     TO_DAYS
 };
 
+static void
+cleanup (PasswordCheckerUI *pwd_ui)
+{
+    g_object_unref (pwd_ui->app);
+
+    if (pwd_ui->settings) {
+        g_object_unref (pwd_ui->settings);
+    }
+
+    g_free (pwd_ui);
+}
+
 static gboolean
 convert_x (GValue   *value,
            GVariant *variant,
@@ -256,6 +268,7 @@ activate (GtkApplication* app,
 
     GtkWidget *label_page_connection = gtk_label_new ("Connection");
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_connection), label_page_connection);
+    g_object_unref (label_page_connection);
 
     gtk_button_set_label (GTK_BUTTON (button_conn), "Apply connection settings");
     g_signal_connect (G_OBJECT (button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
@@ -295,6 +308,7 @@ activate (GtkApplication* app,
     GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
     GtkWidget *label_page_application = gtk_label_new ("Application");
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
+    g_object_unref (label_page_application);
 
     gtk_button_set_label (GTK_BUTTON (button_app), "Apply application settings");
     g_signal_connect (G_OBJECT (button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
@@ -346,6 +360,8 @@ activate (GtkApplication* app,
     g_object_unref (builder);
     g_settings_schema_key_unref (key_url);
     g_settings_schema_key_unref (key_base_dn);
+    g_settings_schema_key_unref (key_start);
+    g_settings_schema_key_unref (key_freq);
     g_settings_schema_unref (schema);
 }
 
@@ -367,8 +383,10 @@ main (int    argc,
 
     pwdui->app = gtk_application_new (pwdui->id, G_APPLICATION_FLAGS_NONE);
     g_signal_connect (pwdui->app, "activate", G_CALLBACK (activate), pwdui);
+    
     status = g_application_run (G_APPLICATION (pwdui->app), argc, argv);
-    g_object_unref (pwdui->app);
+    
+    cleanup (pwdui);
 
     return status;
 }
