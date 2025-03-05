@@ -365,6 +365,33 @@ activate (GtkApplication* app,
     g_settings_schema_unref (schema);
 }
 
+static void
+on_quit_activate (GSimpleAction *action,
+                  GVariant      *parametr,
+                  gpointer       user_data)
+{
+    GtkApplication *app = (GtkApplication *) user_data;
+    g_application_quit (G_APPLICATION (app));
+}
+
+static void
+startup (GApplication *app,
+         gpointer      user_data)
+{
+    static const GActionEntry actions[] = {
+        { "quit", on_quit_activate, NULL, NULL, NULL }
+    };
+
+    g_action_map_add_action_entries (G_ACTION_MAP (app),
+                                     actions,
+                                     G_N_ELEMENTS (actions),
+                                     app);
+
+    gtk_application_set_accels_for_action (GTK_APPLICATION (app),
+                                           "app.quit",
+                                           (const char *[]) { "Escape", NULL });
+}
+
 int
 main (int    argc,
       char **argv)
@@ -382,6 +409,8 @@ main (int    argc,
     pwdui->id = "org.altlinux.passwordchecker";
 
     pwdui->app = gtk_application_new (pwdui->id, G_APPLICATION_FLAGS_NONE);
+
+    g_signal_connect (pwdui->app, "startup", G_CALLBACK (startup), pwdui);
     g_signal_connect (pwdui->app, "activate", G_CALLBACK (activate), pwdui);
     
     status = g_application_run (G_APPLICATION (pwdui->app), argc, argv);
