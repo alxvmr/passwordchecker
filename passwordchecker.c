@@ -29,10 +29,14 @@ cleanup (GSettings *settings,
 }
 
 gboolean
-send_warning ()
+send_warning (gpointer user_data)
 {
+    gchar *expiry_time = (gchar *) user_data;
+    expiry_time = g_strdup_printf ("Your password expires on %s", expiry_time);
+
     GNotification *notification = g_notification_new ("Password change required");
-    g_notification_set_body (notification, "Your password expires on 01/01/01");
+    g_notification_set_body (notification, expiry_time);
+    g_free (expiry_time);
 
     g_application_send_notification (G_APPLICATION (pwc->app), pwc->app_id, notification);
 
@@ -77,8 +81,8 @@ check_password (void *data)
     }
 
     if (START_WARNING_TIME >= diff_hours) {
-        send_warning ();
-        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, NULL);
+        send_warning (g_date_time_format (dt, "%d-%m-%Y %H:%M:%S"));
+        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, g_date_time_format (dt, "%d-%m-%Y %H:%M:%S"));
     }
 
     g_date_time_unref (dt);
