@@ -14,6 +14,10 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *warning_frequencies_min;
     GtkWidget *error_start;
     GtkWidget *error_freq;
+
+    GtkWidget *on_enter_button;
+    GtkWidget *button_conn;
+    GtkWidget *button_app;
 } PasswordCheckerUI;
 
 enum {
@@ -222,6 +226,28 @@ cb_button_app (GtkWidget *button,
 }
 
 static void
+cb_switch_page (GtkNotebook *notebook,
+                GtkWidget   *page,
+                guint        page_num,
+                gpointer     user_data)
+{
+    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
+
+    switch (page_num)
+    {
+        case (0):
+            pwd_ui->on_enter_button = pwd_ui->button_conn;
+            break;
+        case (1):
+            pwd_ui->on_enter_button = pwd_ui->button_app;
+            break;
+        default:
+            pwd_ui->on_enter_button = NULL;
+            break;
+    }
+}
+
+static void
 activate (GtkApplication* app,
           gpointer        user_data)
 {
@@ -245,7 +271,7 @@ activate (GtkApplication* app,
 
     pwd_ui->url = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry1"));
     pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
-    GtkWidget *button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
+    pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
 
     window = gtk_application_window_new (app);
     gtk_window_set_title (GTK_WINDOW (window), "PasswordCheckerSettings");
@@ -254,6 +280,7 @@ activate (GtkApplication* app,
     GtkWidget *main_container = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 
     GtkWidget *notebook = gtk_notebook_new ();
+    g_signal_connect (G_OBJECT (notebook), "switch-page", G_CALLBACK (cb_switch_page), pwd_ui);
 
     /* page 1 */
     GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
@@ -270,8 +297,8 @@ activate (GtkApplication* app,
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_connection), label_page_connection);
     g_object_unref (label_page_connection);
 
-    gtk_button_set_label (GTK_BUTTON (button_conn), "Apply connection settings");
-    g_signal_connect (G_OBJECT (button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
+    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), "Apply connection settings");
+    g_signal_connect (G_OBJECT (pwd_ui->button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
 
     g_settings_bind (pwd_ui->settings, "url", pwd_ui->url, "text", G_SETTINGS_BIND_GET);
     g_settings_bind (pwd_ui->settings, "base-dn", pwd_ui->base_dn, "text", G_SETTINGS_BIND_GET);
@@ -295,7 +322,7 @@ activate (GtkApplication* app,
     pwd_ui->warning_frequencies_hours = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-hours"));
     pwd_ui->warning_frequencies_min = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-min"));
 
-    GtkWidget *button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
+    pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
 
     GtkWidget *label_start = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label1"));
     gtk_label_set_text (GTK_LABEL (label_start), g_settings_schema_key_get_summary (key_start));
@@ -310,8 +337,8 @@ activate (GtkApplication* app,
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
     g_object_unref (label_page_application);
 
-    gtk_button_set_label (GTK_BUTTON (button_app), "Apply application settings");
-    g_signal_connect (G_OBJECT (button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
+    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), "Apply application settings");
+    g_signal_connect (G_OBJECT (pwd_ui->button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
 
     g_settings_bind_with_mapping (pwd_ui->settings,
                                   "start-warning-time",
@@ -370,8 +397,20 @@ on_quit_activate (GSimpleAction *action,
                   GVariant      *parametr,
                   gpointer       user_data)
 {
-    GtkApplication *app = (GtkApplication *) user_data;
-    g_application_quit (G_APPLICATION (app));
+    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
+    g_application_quit (G_APPLICATION (pwd_ui->app));
+}
+
+static void
+on_press_enter (GSimpleAction *action,
+                GVariant      *parametr,
+                gpointer       user_data)
+{
+    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
+
+    if (pwd_ui->on_enter_button != NULL) {
+        g_signal_emit_by_name (pwd_ui->on_enter_button, "clicked", pwd_ui);
+    }
 }
 
 static void
@@ -379,17 +418,22 @@ startup (GApplication *app,
          gpointer      user_data)
 {
     static const GActionEntry actions[] = {
-        { "quit", on_quit_activate, NULL, NULL, NULL }
+        { "quit", on_quit_activate, NULL, NULL, NULL },
+        { "press_enter", on_press_enter, NULL, NULL, NULL}
     };
 
     g_action_map_add_action_entries (G_ACTION_MAP (app),
                                      actions,
                                      G_N_ELEMENTS (actions),
-                                     app);
+                                     user_data);
 
     gtk_application_set_accels_for_action (GTK_APPLICATION (app),
                                            "app.quit",
                                            (const char *[]) { "Escape", NULL });
+
+    gtk_application_set_accels_for_action (GTK_APPLICATION (app),
+                                           "app.press_enter",
+                                           (const char *[]) { "Return", NULL});
 }
 
 int
