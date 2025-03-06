@@ -189,16 +189,12 @@ main ()
     pwc = g_new (PasswordChecker, 1);
     pwc->app_id = "org.altlinux.passwordchecker";
 
-    pwc->app = g_application_new (pwc->app_id, G_APPLICATION_FLAGS_NONE);
+    pwc->app = g_application_new (pwc->app_id, G_APPLICATION_IS_SERVICE);
 
     g_signal_connect (pwc->app, "activate", G_CALLBACK (activate), pwc);
 
     rc = g_application_run (pwc->app, 0, NULL);
 
-    GMainLoop *loop = g_main_loop_new (NULL, FALSE);
-    g_main_loop_run (loop);
-
-    g_main_loop_unref (loop);
     g_object_unref (pwc->pwc_ldap);
     cleanup (pwc->settings, pwc->handler_id);
     g_object_unref (pwc->app);
