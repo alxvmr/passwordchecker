@@ -14,6 +14,7 @@ set (UI_APP_NAME "PasswordCheckerSettings")
 set (SOURCES_UI passwordchecker-ui.c)
 set (GLADE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/data/ui/page_application.glade
                  ${CMAKE_CURRENT_SOURCE_DIR}/data/ui/page_connection.glade)
+set (ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/data/icons/error.svg)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 add_executable(${UI_APP_NAME} ${SOURCES_UI})
@@ -50,11 +51,17 @@ target_compile_options(${UI_APP_NAME} PRIVATE ${GTK_CFLAGS})
 install (TARGETS ${UI_APP_NAME}
          DESTINATION /usr/bin)
 
+install (FILES ${GLADE_FILES}
+         DESTINATION /usr/share/${UI_APP_NAME}/ui)
+
+install (FILES ${ICON_FILES}
+         DESTINATION /usr/share/${UI_APP_NAME}/icons)
+
+install (TARGETS ${CMAKE_PROJECT_NAME}
+         DESTINATION /usr/bin)
+
 install (FILES ${SYSTEMD_UNIT}
          DESTINATION /usr/lib/systemd/user)
-
-install (FILES ${GLADE_FILES}
-         DESTINATION /usr/share/${UI_APP_NAME})
 
 install (FILES ${GSCHEMA}
          DESTINATION /usr/share/glib-2.0/schemas)
