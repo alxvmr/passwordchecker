@@ -10,6 +10,8 @@ set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/data/passwordchecker-user.service)
 
 set (UI_APP_NAME "PasswordCheckerSettings")
 set (SOURCES_UI passwordchecker-ui.c)
+set (GLADE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/data/ui/page_application.glade
+                 ${CMAKE_CURRENT_SOURCE_DIR}/data/ui/page_connection.glade)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 add_executable(${UI_APP_NAME} ${SOURCES_UI})
@@ -48,3 +50,6 @@ install (TARGETS ${UI_APP_NAME}
 
 install (FILES ${SYSTEMD_UNIT}
          DESTINATION /usr/lib/systemd/user)
+
+install (FILES ${GLADE_FILES}
+         DESTINATION /usr/share/${UI_APP_NAME})

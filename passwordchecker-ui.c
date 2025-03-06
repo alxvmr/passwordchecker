@@ -1,6 +1,7 @@
 #include <gtk/gtk.h>
 
 #define SCHEMA_NAME "org.altlinux.passwordchecker"
+#define GLADE_PATH "/usr/share/PasswordCheckerSettings"
 
 typedef struct _PasswordcheckerUI {
     GtkApplication *app;
@@ -259,7 +260,7 @@ activate (GtkApplication* app,
     GSettingsSchemaKey *key_freq = g_settings_schema_get_key (schema, "warning-frequencies");
 
     GtkBuilder *builder = gtk_builder_new ();
-    gtk_builder_add_from_file (builder, "../data/ui/page_connection.glade", &error);
+    gtk_builder_add_from_file (builder, GLADE_PATH "/page_connection.glade", &error);
     if (error){
         g_printerr("Error loading Glade file: %s\n", error->message);
         g_clear_error(&error);
@@ -301,7 +302,7 @@ activate (GtkApplication* app,
     g_settings_bind (pwd_ui->settings, "base-dn", pwd_ui->base_dn, "text", G_SETTINGS_BIND_GET);
 
     /* page 2 */
-    gtk_builder_add_from_file (builder, "../data/ui/page_application.glade", &error);
+    gtk_builder_add_from_file (builder, GLADE_PATH "/page_application.glade", &error);
     if (error){
         g_printerr("Error loading Glade file: %s\n", error->message);
         g_clear_error(&error);
