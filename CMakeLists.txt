@@ -5,6 +5,8 @@ find_package (PkgConfig REQUIRED)
 pkg_check_modules (GIO REQUIRED gio-2.0)
 pkg_check_modules (GTK REQUIRED gtk4)
 
+set (GSCHEMA ${CMAKE_CURRENT_SOURCE_DIR}/data/org.altlinux.passwordchecker.gschema.xml)
+
 set (SOURCES passwordchecker.c passwordchecker-ldap.c)
 set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/data/passwordchecker-user.service)
 
@@ -53,3 +55,6 @@ install (FILES ${SYSTEMD_UNIT}
 
 install (FILES ${GLADE_FILES}
          DESTINATION /usr/share/${UI_APP_NAME})
+
+install (FILES ${GSCHEMA}
+         DESTINATION /usr/share/glib-2.0/schemas)
