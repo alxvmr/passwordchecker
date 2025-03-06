@@ -10,8 +10,8 @@ static gint TIME_CONV_START = 24;
 static gint TIME_CONV_FREQ = 60;
 
 typedef struct _PasswordChecker {
-    GApplication *app;
     const gchar *app_id;
+    guint owner_id;
 
     PasswordcheckerLdap *pwc_ldap;
     GSettings *settings;
@@ -24,23 +24,92 @@ static void
 cleanup (GSettings *settings,
          gulong    handler_id)
 {
-    g_signal_handler_disconnect (settings, handler_id);
-    g_object_unref (settings);
+    if (settings) {
+        g_signal_handler_disconnect (settings, handler_id);
+        g_object_unref (settings);
+    }
+}
+
+static gboolean
+create_connection (PasswordChecker  *pwc,
+                   GDBusConnection **conn)
+{
+    GError *error = NULL;
+
+    *conn = g_bus_get_sync (G_BUS_TYPE_SESSION,
+                            NULL,
+                            &error);
+    if (error) {
+        g_printerr ("Error connecting to D-Bus: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    pwc->owner_id = g_bus_own_name_on_connection (*conn,
+                                                   pwc->app_id,
+                                                   G_BUS_NAME_OWNER_FLAGS_NONE,
+                                                   NULL,
+                                                   NULL,
+                                                   NULL,
+                                                   NULL);
+
+    if (pwc->owner_id == 0) {
+        g_printerr ("Failed to register a name on DBus: %s\n", pwc->app_id);
+        g_object_unref (conn);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 gboolean
 send_warning (gpointer user_data)
 {
+    GVariant *parametrs = NULL;
+    GDBusConnection *conn = NULL;
+    GError *error = NULL;
+
     gchar *expiry_time = (gchar *) user_data;
     expiry_time = g_strdup_printf ("Your password expires on %s", expiry_time);
 
-    GNotification *notification = g_notification_new ("Password change required");
-    g_notification_set_body (notification, expiry_time);
+    if (!create_connection (pwc, &conn)) {
+        g_free (expiry_time);
+        return FALSE;
+    }
+
+    parametrs = g_variant_new ("(susssasa{sv}i)",
+                               "passwordchecker",
+                               0u,
+                               "",
+                               "Password change required",
+                               expiry_time,
+                               NULL,
+                               NULL,
+                               -1,
+                               NULL);
+
+    g_dbus_connection_call_sync (conn,
+                                 "org.freedesktop.Notifications",
+                                 "/org/freedesktop/Notifications",
+                                 "org.freedesktop.Notifications",
+                                 "Notify",
+                                 parametrs,
+                                 NULL,
+                                 G_DBUS_CALL_FLAGS_NONE,
+                                 -1,
+                                 NULL,
+                                 &error);
+
+    if (error) {
+        g_printerr("Error sending notification: %s\n", error->message);
+        g_error_free (error);
+        g_variant_unref (parametrs);
+        return FALSE;
+    }
+
     g_free (expiry_time);
-
-    g_application_send_notification (G_APPLICATION (pwc->app), pwc->app_id, notification);
-
-    g_object_unref (notification);
+    g_bus_unown_name (pwc->owner_id);
+    g_object_unref (conn);
 
     return TRUE;
 }
@@ -166,11 +235,8 @@ load_gsettings (gchar               *schema_name,
 }
 
 static gint
-activate (GApplication *app,
-          gpointer      user_data)
+activate (PasswordChecker *pwc)
 {
-    PasswordChecker *pwc = (PasswordChecker *) user_data;
-
     pwc->pwc_ldap = passwordchecker_ldap_new (NULL, NULL);
 
     if (!load_gsettings ("org.altlinux.passwordchecker", pwc->pwc_ldap, &pwc->settings, &pwc->handler_id))
@@ -185,19 +251,18 @@ main ()
 {
     // PasswordcheckerLdap *pwc_ldap = passwordchecker_ldap_new ("ldap://srt-dc1.smb.basealt.ru", "dc=smb,dc=basealt,dc=ru");
     gint rc;
+    GError *error = NULL;
 
     pwc = g_new (PasswordChecker, 1);
     pwc->app_id = "org.altlinux.passwordchecker";
+    activate (pwc);
 
-    pwc->app = g_application_new (pwc->app_id, G_APPLICATION_IS_SERVICE);
-
-    g_signal_connect (pwc->app, "activate", G_CALLBACK (activate), pwc);
-
-    rc = g_application_run (pwc->app, 0, NULL);
+    GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+    g_main_loop_run (loop);
+    g_main_loop_unref (loop);
 
     g_object_unref (pwc->pwc_ldap);
     cleanup (pwc->settings, pwc->handler_id);
-    g_object_unref (pwc->app);
     g_free (pwc);
 
     return rc;
