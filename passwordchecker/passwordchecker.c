@@ -16,18 +16,22 @@ typedef struct _PasswordChecker {
     PasswordcheckerLdap *pwc_ldap;
     GSettings *settings;
     gulong handler_id;
+
+    gchar *expiry_time;
 } PasswordChecker;
 
 PasswordChecker *pwc = NULL;
 
 static void
-cleanup (GSettings *settings,
-         gulong    handler_id)
+cleanup (PasswordChecker *pwc)
 {
-    if (settings) {
-        g_signal_handler_disconnect (settings, handler_id);
-        g_object_unref (settings);
+    if (pwc->settings) {
+        g_signal_handler_disconnect (pwc->settings, pwc->handler_id);
+        g_object_unref (pwc->settings);
     }
+
+    if (pwc->expiry_time != NULL)
+        g_free (pwc->expiry_time);
 }
 
 static gboolean
@@ -122,7 +126,6 @@ check_password (void *data)
 {
     GDateTime *dt = NULL;
     GDateTime *current_time = NULL;
-    gchar *expiry_time = NULL;
     gint64 diff_sec;
     gint64 diff_hours;
     int rc;
@@ -148,19 +151,21 @@ check_password (void *data)
     // g_print ("diff_hours = %ld\n", diff_hours);
     // g_print ("start_warning = %ld\n", START_WARNING_TIME);
 
+    if (pwc->expiry_time != NULL){
+        g_free (pwc->expiry_time);
+        pwc->expiry_time = NULL;
+    }
+
     if (TIMER_WARNING_ID != 0) {
         g_source_remove (TIMER_WARNING_ID);
         TIMER_WARNING_ID = 0;
-
-        if (expiry_time != NULL)
-            g_free (expiry_time);
     }
 
     if (START_WARNING_TIME >= diff_hours) {
-        expiry_time = g_date_time_format (dt, "%d-%m-%Y %H:%M:%S");
+        pwc->expiry_time = g_date_time_format (dt, "%d-%m-%Y %H:%M:%S");
 
-        send_warning (expiry_time);
-        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, expiry_time);
+        send_warning (pwc->expiry_time);
+        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, pwc->expiry_time);
     }
 
     g_date_time_unref (dt);
@@ -271,7 +276,8 @@ main ()
     g_main_loop_unref (loop);
 
     g_object_unref (pwc->pwc_ldap);
-    cleanup (pwc->settings, pwc->handler_id);
+    cleanup (pwc);
+    cleanup (pwc);
     g_free (pwc);
 
     return rc;
