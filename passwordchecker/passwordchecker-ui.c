@@ -19,6 +19,8 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *on_enter_button;
     GtkWidget *button_conn;
     GtkWidget *button_app;
+
+    guint owner_id;
 } PasswordCheckerUI;
 
 enum {
@@ -93,17 +95,86 @@ convert_mins (GValue   *value,
     return TRUE;
 }
 
+static gboolean
+create_connection (PasswordCheckerUI  *pwd_ui,
+                   GDBusConnection   **conn)
+{
+    GError *error = NULL;
+
+    *conn = g_bus_get_sync (G_BUS_TYPE_SESSION,
+                            NULL,
+                            &error);
+    if (error) {
+        g_printerr ("Error connecting to D-Bus: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    pwd_ui->owner_id = g_bus_own_name_on_connection (*conn,
+                                                      pwd_ui->id,
+                                                      G_BUS_NAME_OWNER_FLAGS_NONE,
+                                                      NULL,
+                                                      NULL,
+                                                      NULL,
+                                                      NULL);
+
+    if (pwd_ui->owner_id == 0) {
+        g_printerr ("Failed to register a name on DBus: %s\n", pwd_ui->id);
+        g_object_unref (conn);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 static void
 send_notification (const gchar       *title,
                    const gchar       *body,
                    PasswordCheckerUI *pwd_ui)
 {
-    GNotification *notification = g_notification_new (title);
-    g_notification_set_body (notification, body);
+    GVariant *parametrs = NULL;
+    GVariant *reply = NULL;
+    GDBusConnection *conn = NULL;
+    GError *error = NULL;
 
-    g_application_send_notification (G_APPLICATION (pwd_ui->app), pwd_ui->id, notification);
+    if (!create_connection (pwd_ui, &conn)) {
+        return;
+    }
 
-    g_object_unref (notification);
+    parametrs = g_variant_new ("(susssasa{sv}i)",
+                               "PasswordCheckerSettings",
+                               pwd_ui->id,
+                               "",
+                               title,
+                               body,
+                               NULL,
+                               NULL,
+                               -1,
+                               NULL);
+
+    reply = g_dbus_connection_call_sync (conn,
+                                         "org.freedesktop.Notifications",
+                                         "/org/freedesktop/Notifications",
+                                         "org.freedesktop.Notifications",
+                                         "Notify",
+                                         parametrs,
+                                         NULL,
+                                         G_DBUS_CALL_FLAGS_NONE,
+                                         -1,
+                                         NULL,
+                                         &error);
+
+    if (reply == NULL) {
+        g_printerr("Error sending notification: %s\n", error->message);
+        g_error_free (error);
+        return;
+    }
+
+    g_variant_unref (reply);
+    g_bus_unown_name (pwd_ui->owner_id);
+    g_object_unref (conn);
+
+    return;
 }
 
 static void
