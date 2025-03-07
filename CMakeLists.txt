@@ -5,16 +5,18 @@ find_package (PkgConfig REQUIRED)
 pkg_check_modules (GIO REQUIRED gio-2.0)
 pkg_check_modules (GTK REQUIRED gtk4)
 
-set (GSCHEMA ${CMAKE_CURRENT_SOURCE_DIR}/data/org.altlinux.passwordchecker.gschema.xml)
+set (CMAKE_CURRENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker/)
 
-set (SOURCES passwordchecker.c passwordchecker-ldap.c)
-set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/data/passwordchecker-user.service)
+set (GSCHEMA ${CMAKE_CURRENT_SOURCE_DIR}/../data/org.altlinux.passwordchecker.gschema.xml)
+
+set (SOURCES ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker.c ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-ldap.c)
+set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/../data/passwordchecker-user.service)
 
 set (UI_APP_NAME "PasswordCheckerSettings")
-set (SOURCES_UI passwordchecker-ui.c)
-set (GLADE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/data/ui/page_application.glade
-                 ${CMAKE_CURRENT_SOURCE_DIR}/data/ui/page_connection.glade)
-set (ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/data/icons/error.svg)
+set (SOURCES_UI ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-ui.c)
+set (GLADE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_application.glade
+                 ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_connection.glade)
+set (ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/icons/error.svg)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 add_executable(${UI_APP_NAME} ${SOURCES_UI})
