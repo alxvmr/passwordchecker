@@ -105,7 +105,6 @@ send_warning (gpointer user_data)
         g_printerr("Error sending notification: %s\n", error->message);
         g_error_free (error);
         g_free (mess);
-        g_variant_unref (parametrs);
         return FALSE;
     }
 
