@@ -66,6 +66,7 @@ gboolean
 send_warning (gpointer user_data)
 {
     GVariant *parametrs = NULL;
+    GVariant *reply = NULL;
     GDBusConnection *conn = NULL;
     GError *error = NULL;
     gchar *mess = NULL;
@@ -89,25 +90,26 @@ send_warning (gpointer user_data)
                                -1,
                                NULL);
 
-    g_dbus_connection_call_sync (conn,
-                                 "org.freedesktop.Notifications",
-                                 "/org/freedesktop/Notifications",
-                                 "org.freedesktop.Notifications",
-                                 "Notify",
-                                 parametrs,
-                                 NULL,
-                                 G_DBUS_CALL_FLAGS_NONE,
-                                 -1,
-                                 NULL,
-                                 &error);
+    reply = g_dbus_connection_call_sync (conn,
+                                         "org.freedesktop.Notifications",
+                                         "/org/freedesktop/Notifications",
+                                         "org.freedesktop.Notifications",
+                                         "Notify",
+                                         parametrs,
+                                         NULL,
+                                         G_DBUS_CALL_FLAGS_NONE,
+                                         -1,
+                                         NULL,
+                                         &error);
 
-    if (error) {
+    if (reply == NULL) {
         g_printerr("Error sending notification: %s\n", error->message);
         g_error_free (error);
         g_free (mess);
         return FALSE;
     }
 
+    g_variant_unref (reply);
     g_free (mess);
     g_bus_unown_name (pwc->owner_id);
     g_object_unref (conn);
