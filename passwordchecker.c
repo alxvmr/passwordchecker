@@ -68,12 +68,13 @@ send_warning (gpointer user_data)
     GVariant *parametrs = NULL;
     GDBusConnection *conn = NULL;
     GError *error = NULL;
+    gchar *mess = NULL;
 
     gchar *expiry_time = (gchar *) user_data;
-    expiry_time = g_strdup_printf ("Your password expires on %s", expiry_time);
+    mess = g_strdup_printf ("Your password expires on %s", expiry_time);
 
     if (!create_connection (pwc, &conn)) {
-        g_free (expiry_time);
+        g_free (mess);
         return FALSE;
     }
 
@@ -82,7 +83,7 @@ send_warning (gpointer user_data)
                                0u,
                                "",
                                "Password change required",
-                               expiry_time,
+                               mess,
                                NULL,
                                NULL,
                                -1,
@@ -103,11 +104,12 @@ send_warning (gpointer user_data)
     if (error) {
         g_printerr("Error sending notification: %s\n", error->message);
         g_error_free (error);
+        g_free (mess);
         g_variant_unref (parametrs);
         return FALSE;
     }
 
-    g_free (expiry_time);
+    g_free (mess);
     g_bus_unown_name (pwc->owner_id);
     g_object_unref (conn);
 
@@ -119,6 +121,7 @@ check_password (void *data)
 {
     GDateTime *dt = NULL;
     GDateTime *current_time = NULL;
+    gchar *expiry_time = NULL;
     gint64 diff_sec;
     gint64 diff_hours;
     int rc;
@@ -147,11 +150,16 @@ check_password (void *data)
     if (TIMER_WARNING_ID != 0) {
         g_source_remove (TIMER_WARNING_ID);
         TIMER_WARNING_ID = 0;
+
+        if (expiry_time != NULL)
+            g_free (expiry_time);
     }
 
     if (START_WARNING_TIME >= diff_hours) {
-        send_warning (g_date_time_format (dt, "%d-%m-%Y %H:%M:%S"));
-        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, g_date_time_format (dt, "%d-%m-%Y %H:%M:%S"));
+        expiry_time = g_date_time_format (dt, "%d-%m-%Y %H:%M:%S");
+
+        send_warning (expiry_time);
+        TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, expiry_time);
     }
 
     g_date_time_unref (dt);
