@@ -10,6 +10,7 @@ static gint TIME_CONV_START = 24;
 static gint TIME_CONV_FREQ = 60;
 
 typedef struct _PasswordChecker {
+    GMainLoop *loop;
     const gchar *app_id;
     guint owner_id;
 
@@ -191,8 +192,8 @@ settings_changed (GSettings *settings,
     type = g_variant_get_type (value_gv);
 
     if (g_variant_type_equal (type, G_VARIANT_TYPE_STRING)) {
-        const gchar* value = NULL;
-        value = g_variant_get_string (value_gv, NULL);
+        gchar* value = NULL;
+        g_variant_get (value_gv, "s", &value);
 
         if (g_strcmp0 (key, "url") == 0) {
             passwordchecker_ldap_set_url (g_strdup (value), pwc_ldap);
@@ -201,6 +202,9 @@ settings_changed (GSettings *settings,
         if (g_strcmp0 (key, "base-dn") == 0) {
             passwordchecker_ldap_set_base_dn (g_strdup (value), pwc_ldap);
         }
+
+        if (value)
+            g_free (value);
     }
 
     if (g_variant_type_equal (type, G_VARIANT_TYPE_INT64)) {
@@ -219,6 +223,96 @@ settings_changed (GSettings *settings,
     return;
 }
 
+static gchar*
+get_netlogon_conn ()
+{
+    GError *error = NULL;
+    GSubprocess *subprocess = NULL;
+    gchar *url = NULL;
+    gsize url_length;
+
+    subprocess = g_subprocess_new (
+        G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
+        &error,
+        "wbinfo", "-P", NULL
+    );
+
+    if (error) {
+        g_printerr ("Error creating subprocess (wbinfo): %s\n", error->message);
+        g_error_free (error);
+        return NULL;
+    }
+
+    GSource *timeout = NULL;
+    GInputStream *instream = NULL;
+    gchar buf[1025];
+    
+    instream = g_subprocess_get_stdout_pipe (subprocess);
+
+    /*
+    TODO: change to asynchronous call and add execution timeout
+    */
+    if (!g_input_stream_read_all (instream, buf, sizeof (buf), &url_length, NULL, &error)) {
+        g_printerr ("Failed to read the output of the child process: %s\n", error->message);
+        g_error_free (error);
+        g_object_unref (subprocess);
+        
+        return NULL;
+    }
+
+    url = g_strndup (buf, url_length);
+
+    g_object_unref (subprocess);
+
+    return url;
+}
+
+static gchar*
+get_url_ldap () {
+    gchar *netlogon_conn_str = NULL;
+    gchar *url = NULL;
+    GRegex *regex = NULL;
+    GMatchInfo *match_info = NULL;
+    GError *error = NULL;
+
+    netlogon_conn_str = get_netlogon_conn ();
+
+    if (!netlogon_conn_str) {
+        return NULL;
+    }
+
+    regex = g_regex_new ("\"(.*?)\"", 0, 0, &error);
+    if (error) {
+        g_printerr ("Error creating regex: %s\n", error->message);
+        g_error_free (error);
+        g_free (netlogon_conn_str);
+
+        return NULL;
+    }
+
+    if (g_regex_match (regex, netlogon_conn_str, 0, &match_info)) {
+        g_free (netlogon_conn_str);
+        g_regex_unref (regex);
+
+        gchar *prefix = "ldap://";
+        gchar *url_with_prefix = NULL;
+
+        url = g_match_info_fetch (match_info, 1);
+        g_match_info_free (match_info);
+        url_with_prefix = g_strconcat (prefix, url, NULL);
+
+        g_free (url);
+
+        return url_with_prefix;
+    }
+
+    g_free (netlogon_conn_str);
+    g_regex_unref (regex);
+    g_match_info_free (match_info);
+
+    return NULL;
+}
+
 static gboolean
 load_gsettings (gchar               *schema_name,
                 PasswordcheckerLdap *pwc_ldap,
@@ -232,15 +326,25 @@ load_gsettings (gchar               *schema_name,
     if (!*settings)
         return FALSE;
 
-    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc_ldap);
-
     url = g_settings_get_string (*settings, "url");
     base_dn = g_settings_get_string (*settings, "base-dn");
     START_WARNING_TIME = g_settings_get_int64 (*settings, "start-warning-time") * TIME_CONV_START;
     WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV_FREQ;
 
+    if (g_strcmp0 (url, "") == 0) {
+        g_free (url);
+        url = get_url_ldap ();
+        if (url) {
+            if (! g_settings_set_string (*settings, "url", url)) {
+                g_warning ("Failed to write the url retrieved from webinfo to the GSettings\n");
+            }
+        }
+    }
+
     passwordchecker_ldap_set_url (url, pwc_ldap);
     passwordchecker_ldap_set_base_dn (base_dn, pwc_ldap);
+
+    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc_ldap);
 
     g_free (url);
     g_free (base_dn);
@@ -271,9 +375,9 @@ main ()
     pwc->app_id = "org.altlinux.passwordchecker";
     activate (pwc);
 
-    GMainLoop *loop = g_main_loop_new (NULL, FALSE);
-    g_main_loop_run (loop);
-    g_main_loop_unref (loop);
+    pwc->loop = g_main_loop_new (NULL, FALSE);
+    g_main_loop_run (pwc->loop);
+    g_main_loop_unref (pwc->loop);
 
     g_object_unref (pwc->pwc_ldap);
     cleanup (pwc);
