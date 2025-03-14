@@ -10,6 +10,7 @@ static gint TIME_CONV_START = 24;
 static gint TIME_CONV_FREQ = 60;
 
 typedef struct _PasswordChecker {
+    GMainLoop *loop;
     const gchar *app_id;
     guint owner_id;
 
@@ -248,6 +249,107 @@ load_gsettings (gchar               *schema_name,
     return TRUE;
 }
 
+static gboolean
+on_timeout (gpointer user_data)
+{
+    GSubprocess *subprocess = (GSubprocess *) user_data;
+
+    if (subprocess == NULL)
+        return TRUE;
+    
+    g_print ("Timeout has expired, ldap url search is terminated...\n");
+    g_subprocess_force_exit (subprocess);
+
+    return TRUE;
+}
+
+static gchar*
+get_netlogon_conn ()
+{
+    GError *error = NULL;
+    GSubprocess *subprocess = NULL;
+    gchar *url = NULL;
+    gsize url_length;
+
+    subprocess = g_subprocess_new (
+        G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_PIPE,
+        &error,
+        "wbinfo", "-P", NULL
+    );
+
+    if (error) {
+        g_printerr ("Error creating subprocess (wbinfo): %s\n", error->message);
+        g_error_free (error);
+        return NULL;
+    }
+
+    GSource *timeout = NULL;
+    GInputStream *instream = NULL;
+    guint timer_id;
+    gchar buf[1025];
+
+    instream = g_subprocess_get_stdout_pipe (subprocess);
+
+    timer_id = g_timeout_add_seconds (5, on_timeout, subprocess);
+
+    if (!g_input_stream_read_all (instream, buf, sizeof (buf), &url_length, NULL, &error)) {
+        g_printerr ("Failed to read the output of the child process: %s\n", error->message);
+        g_error_free (error);
+        g_object_unref (subprocess);
+        
+        return NULL;
+    }
+
+    g_source_remove (timer_id);
+
+
+    url = g_strndup (buf, url_length);
+
+    g_object_unref (subprocess);
+
+    return url;
+}
+
+static gchar*
+get_url_ldap () {
+    gchar *netlogon_conn_str = NULL;
+    gchar *url = NULL;
+    GRegex *regex = NULL;
+    GMatchInfo *match_info = NULL;
+    GError *error = NULL;
+
+    netlogon_conn_str = get_netlogon_conn ();
+
+    if (!netlogon_conn_str) {
+        return NULL;
+    }
+
+    regex = g_regex_new ("\"(.*?)\"", 0, 0, &error);
+    if (error) {
+        g_printerr ("Error creating regex: %s\n", error->message);
+        g_error_free (error);
+        g_free (netlogon_conn_str);
+
+        return NULL;
+    }
+
+    if (g_regex_match (regex, netlogon_conn_str, 0, &match_info)) {
+        g_free (netlogon_conn_str);
+        g_regex_unref (regex);
+
+        url = g_match_info_fetch (match_info, 1);
+        g_match_info_free (match_info);
+
+        return url;
+    }
+
+    g_free (netlogon_conn_str);
+    g_regex_unref (regex);
+    g_match_info_free (match_info);
+
+    return NULL;
+}
+
 static gint
 activate (PasswordChecker *pwc)
 {
@@ -271,9 +373,11 @@ main ()
     pwc->app_id = "org.altlinux.passwordchecker";
     activate (pwc);
 
-    GMainLoop *loop = g_main_loop_new (NULL, FALSE);
-    g_main_loop_run (loop);
-    g_main_loop_unref (loop);
+    pwc->loop = g_main_loop_new (NULL, FALSE);
+    gchar* url = get_url_ldap ();
+    g_print ("%s\n", url);
+    g_main_loop_run (pwc->loop);
+    g_main_loop_unref (pwc->loop);
 
     g_object_unref (pwc->pwc_ldap);
     cleanup (pwc);
