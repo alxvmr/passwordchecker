@@ -323,13 +323,7 @@ activate (GtkApplication* app,
     PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
     GtkWidget *window = NULL;
     GError *error = NULL;
-
-    GSettingsSchema *schema = g_settings_schema_source_lookup (g_settings_schema_source_get_default (), SCHEMA_NAME, TRUE);
-    GSettingsSchemaKey *key_url = g_settings_schema_get_key (schema, "url");
-    GSettingsSchemaKey *key_base_dn = g_settings_schema_get_key (schema, "base-dn");
-    GSettingsSchemaKey *key_start = g_settings_schema_get_key (schema, "start-warning-time");
-    GSettingsSchemaKey *key_freq = g_settings_schema_get_key (schema, "warning-frequencies");
-
+    
     GtkBuilder *builder = gtk_builder_new ();
     gtk_builder_add_from_file (builder, UI_PATH "/ui/page_connection.glade", &error);
     if (error){
@@ -355,18 +349,18 @@ activate (GtkApplication* app,
     GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
 
     GtkWidget *label1 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label1"));
-    gtk_label_set_text (GTK_LABEL (label1), g_settings_schema_key_get_summary (key_url));
-    gtk_widget_set_tooltip_text (label1, g_settings_schema_key_get_description (key_url));
+    gtk_label_set_text (GTK_LABEL (label1), _("LDAP server address"));
+    gtk_widget_set_tooltip_text (label1, _("Specifies the LDAP server address (e.g. ldap://dc1.domain.test.ru)"));
 
     GtkWidget *label2 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label2"));
-    gtk_label_set_text (GTK_LABEL (label2), g_settings_schema_key_get_summary (key_base_dn));
-    gtk_widget_set_tooltip_text (label2, g_settings_schema_key_get_description (key_base_dn));
+    gtk_label_set_text (GTK_LABEL (label2), _("Search root"));
+    gtk_widget_set_tooltip_text (label2, _("Specifies the search root for the desired record (e.g. 'dc=domain,dc=test,dc=ru')"));
 
     GtkWidget *label_page_connection = gtk_label_new ("Connection");
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_connection), label_page_connection);
     g_object_unref (label_page_connection);
 
-    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), "Apply connection settings");
+    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), _("Apply connection settings"));
     g_signal_connect (G_OBJECT (pwd_ui->button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
 
     g_settings_bind (pwd_ui->settings, "url", pwd_ui->url, "text", G_SETTINGS_BIND_GET);
@@ -394,19 +388,19 @@ activate (GtkApplication* app,
     pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
 
     GtkWidget *label_start = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label1"));
-    gtk_label_set_text (GTK_LABEL (label_start), g_settings_schema_key_get_summary (key_start));
-    gtk_widget_set_tooltip_text (label_start, g_settings_schema_key_get_description (key_start));
+    gtk_label_set_text (GTK_LABEL (label_start), _("Notification start time"));
+    gtk_widget_set_tooltip_text (label_start, _("How much time to warn the user about password expiration"));
 
     GtkWidget *label_freq = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label2"));
-    gtk_label_set_text (GTK_LABEL (label_freq), g_settings_schema_key_get_summary (key_freq));
-    gtk_widget_set_tooltip_text (label_freq, g_settings_schema_key_get_description (key_freq));
+    gtk_label_set_text (GTK_LABEL (label_freq), _("Frequency of warnings"));
+    gtk_widget_set_tooltip_text (label_freq, _("Sets the frequency of password change warning output"));
 
     GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
     GtkWidget *label_page_application = gtk_label_new ("Application");
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
     g_object_unref (label_page_application);
 
-    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), "Apply application settings");
+    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), _("Apply application settings"));
     g_signal_connect (G_OBJECT (pwd_ui->button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
 
     g_settings_bind_with_mapping (pwd_ui->settings,
@@ -454,11 +448,6 @@ activate (GtkApplication* app,
     gtk_window_present (GTK_WINDOW (window));
 
     g_object_unref (builder);
-    g_settings_schema_key_unref (key_url);
-    g_settings_schema_key_unref (key_base_dn);
-    g_settings_schema_key_unref (key_start);
-    g_settings_schema_key_unref (key_freq);
-    g_settings_schema_unref (schema);
 }
 
 static void
