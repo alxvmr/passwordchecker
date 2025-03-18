@@ -270,7 +270,9 @@ gboolean
 passwordchecker_ldap_set_url (gchar               *url,
                               PasswordcheckerLdap *self)
 {
-    g_free (self->url);
+    if (self->url)
+        g_free (self->url);
+
     if (g_strcmp0 (url, "") == 0)
         self->url = NULL;
     else

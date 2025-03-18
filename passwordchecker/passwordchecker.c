@@ -196,11 +196,11 @@ settings_changed (GSettings *settings,
         g_variant_get (value_gv, "s", &value);
 
         if (g_strcmp0 (key, "url") == 0) {
-            passwordchecker_ldap_set_url (g_strdup (value), pwc_ldap);
+            passwordchecker_ldap_set_url (value, pwc_ldap);
         }
 
         if (g_strcmp0 (key, "base-dn") == 0) {
-            passwordchecker_ldap_set_base_dn (g_strdup (value), pwc_ldap);
+            passwordchecker_ldap_set_base_dn (value, pwc_ldap);
         }
 
         if (value)
