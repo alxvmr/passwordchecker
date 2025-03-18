@@ -51,7 +51,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkEntry" id="page2-entry1-days"/>
+              <object class="GtkEntry" id="page2-entry1-days">
+                <property name="hexpand">True</property>
+                <property name="hexpand-set">True</property>
+              </object>
             </child>
             <child>
               <object class="GtkLabel">
@@ -61,6 +64,8 @@
             <child>
               <object class="GtkEntry" id="page2-entry1-hours">
                 <property name="sensitive">False</property>
+                <property name="hexpand">True</property>
+                <property name="hexpand-set">True</property>
               </object>
             </child>
             <child>
@@ -72,6 +77,8 @@
             <child>
               <object class="GtkEntry" id="page2-entry1-min">
                 <property name="sensitive">False</property>
+                <property name="hexpand">True</property>
+                <property name="hexpand-set">True</property>
               </object>
             </child>
             <child>
@@ -102,7 +109,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkEntry" id="page2-entry2-days"/>
+              <object class="GtkEntry" id="page2-entry2-days">
+                <property name="hexpand">True</property>
+                <property name="hexpand-set">True</property>
+              </object>
             </child>
             <child>
               <object class="GtkLabel">
@@ -110,7 +120,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkEntry" id="page2-entry2-hours"/>
+              <object class="GtkEntry" id="page2-entry2-hours">
+                <property name="hexpand">True</property>
+                <property name="hexpand-set">True</property>
+              </object>
             </child>
             <child>
               <object class="GtkLabel">
@@ -118,7 +131,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkEntry" id="page2-entry2-min"/>
+              <object class="GtkEntry" id="page2-entry2-min">
+                <property name="hexpand">True</property>
+                <property name="hexpand-set">True</property>
+              </object>
             </child>
             <child>
               <object class="GtkLabel">
