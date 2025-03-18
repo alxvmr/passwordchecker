@@ -21,6 +21,8 @@ set (ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/icons/error.svg)
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 add_executable(${UI_APP_NAME} ${SOURCES_UI})
 
+add_subdirectory(locales)
+
 find_path (LIBLDAP_INCLUDE_DIR 
            NAMES ldap.h
            PATHS /usr/include)

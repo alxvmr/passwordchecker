@@ -1,7 +1,11 @@
 #include <gtk/gtk.h>
+#include <locale.h>
+#include <libintl.h>
 
 #define SCHEMA_NAME "org.altlinux.passwordchecker"
 #define UI_PATH "/usr/share/PasswordCheckerSettings"
+
+#define _(STRING) gettext(STRING)
 
 typedef struct _PasswordcheckerUI {
     GtkApplication *app;
@@ -210,17 +214,17 @@ convert_str_2_gint64 (gchar   *str,
     gchar *end_ptr = NULL;
 
     if (str == NULL || *str == '\0') {
-        *error = g_strdup ("Time units can't be empty");
+        *error = g_strdup (_("Time units can't be empty"));
         return FALSE;
     }
 
     if (*str == '-') {
-        *error = g_strdup ("Time units can't be negative");
+        *error = g_strdup (_("Time units can't be negative"));
         return FALSE;
     }
 
     if (!is_numeric (str)) {
-        *error = g_strdup ("The record contains invalid characters");
+        *error = g_strdup (_("The record contains invalid characters"));
         return FALSE;
     }
 
@@ -356,7 +360,7 @@ activate (GtkApplication* app,
     gtk_label_set_text (GTK_LABEL (label2), _("Search root"));
     gtk_widget_set_tooltip_text (label2, _("Specifies the search root for the desired record (e.g. 'dc=domain,dc=test,dc=ru')"));
 
-    GtkWidget *label_page_connection = gtk_label_new ("Connection");
+    GtkWidget *label_page_connection = gtk_label_new (_("Connection"));
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_connection), label_page_connection);
     g_object_unref (label_page_connection);
 
@@ -396,7 +400,7 @@ activate (GtkApplication* app,
     gtk_widget_set_tooltip_text (label_freq, _("Sets the frequency of password change warning output"));
 
     GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
-    GtkWidget *label_page_application = gtk_label_new ("Application");
+    GtkWidget *label_page_application = gtk_label_new (_("Application"));
     gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
     g_object_unref (label_page_application);
 
@@ -498,6 +502,10 @@ int
 main (int    argc,
       char **argv)
 {
+    setlocale (LC_ALL, "");
+    bindtextdomain ("passwordchecker", "/usr/share/locale/");
+    textdomain ("passwordchecker");
+
     GSettings *settings = NULL;
     int status;
 
