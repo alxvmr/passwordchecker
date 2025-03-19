@@ -283,7 +283,8 @@ gboolean
 passwordchecker_ldap_set_base_dn (gchar               *base_dn,
                                   PasswordcheckerLdap *self)
 {
-    g_free (self->base_dn);
+    if (self->base_dn)
+        g_free (self->base_dn);
     if (g_strcmp0 (base_dn, "") == 0)
         self->base_dn = NULL;
     else
