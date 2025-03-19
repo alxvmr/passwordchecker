@@ -313,6 +313,45 @@ get_url_ldap () {
     return NULL;
 }
 
+/*
+    It's a bad temporary option
+    I don't know how to get base_dn yet
+    TODO: fixme
+*/
+static gchar*
+get_base_dn (gchar *url)
+{
+    gchar *pos = NULL;
+    gchar **parts = NULL;
+    gchar *base_dn = NULL;
+    gchar *url_copy = g_strdup (url);
+    gchar *start_ptr = url_copy;
+
+    pos = g_strstr_len (url_copy, -1, "://");
+    if (pos != NULL) {
+        url_copy = pos + 3;
+    }
+
+    parts = g_strsplit (url_copy, ".", -1);
+    g_free (start_ptr);
+
+    if (parts != NULL && parts[0] != NULL) {
+        parts = parts + 1;
+
+        for (int i = 0; parts[i] != NULL; i++){
+            gchar *e = parts[i];
+            parts[i] = g_strconcat ("dc=", parts[i], NULL);
+            g_free (e);
+        }
+
+        base_dn = g_strjoinv (",", parts);
+
+        g_strfreev (parts-1);
+    }
+
+    return base_dn;
+}
+
 static gboolean
 load_gsettings (gchar               *schema_name,
                 PasswordcheckerLdap *pwc_ldap,
@@ -337,6 +376,16 @@ load_gsettings (gchar               *schema_name,
         if (url) {
             if (! g_settings_set_string (*settings, "url", url)) {
                 g_warning ("Failed to write the url retrieved from webinfo to the GSettings\n");
+            }
+        }
+    }
+
+    if (g_strcmp0 (base_dn, "") == 0 && url != NULL) {
+        g_free (base_dn);
+        base_dn = get_base_dn (url);
+        if (base_dn) {
+            if (! g_settings_set_string (*settings, "base-dn", base_dn)) {
+                g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
             }
         }
     }
