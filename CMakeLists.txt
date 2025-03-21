@@ -4,6 +4,7 @@ project(passwordchecker VERSION 0.1.0 LANGUAGES C)
 find_package (PkgConfig REQUIRED)
 pkg_check_modules (GIO REQUIRED gio-2.0)
 pkg_check_modules (GTK REQUIRED gtk4)
+pkg_check_modules (ADWAITA REQUIRED libadwaita-1)
 
 set (CMAKE_CURRENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker/)
 
@@ -48,9 +49,9 @@ else()
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${GIO_CFLAGS})
 endif()
 
-target_include_directories(${UI_APP_NAME} PRIVATE ${GTK_INCLUDE_DIR})
-target_link_libraries(${UI_APP_NAME} PRIVATE ${GTK_LIBRARIES})
-target_compile_options(${UI_APP_NAME} PRIVATE ${GTK_CFLAGS})
+target_include_directories(${UI_APP_NAME} PRIVATE ${GTK_INCLUDE_DIRS} ${ADWAITA_INCLUDE_DIRS})
+target_link_libraries(${UI_APP_NAME} PRIVATE ${GTK_LIBRARIES} ${ADWAITA_LIBRARIES})
+target_compile_options(${UI_APP_NAME} PRIVATE ${GTK_CFLAGS} ${ADWAITA_CFLAGS})
 
 install (TARGETS ${UI_APP_NAME}
          DESTINATION /usr/bin)
