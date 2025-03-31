@@ -362,7 +362,7 @@ activate (GtkApplication* app,
     GtkBox *app_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-application"));
     gtk_widget_set_name (GTK_WIDGET (app_content), "notebook-page-application");
     AdwViewStackPage *app_page = adw_view_stack_add (ADW_VIEW_STACK (pwd_ui->stack), GTK_WIDGET (app_content));
-    adw_view_stack_page_set_title (app_page, "Application");
+    adw_view_stack_page_set_title (app_page, _("Application"));
 
     gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-page-con.ui", &error);
     if (error){
@@ -378,7 +378,7 @@ activate (GtkApplication* app,
     GtkBox *con_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-connection"));
     gtk_widget_set_name (GTK_WIDGET (con_content), "notebook-page-connection");
     AdwViewStackPage *con_page = adw_view_stack_add (ADW_VIEW_STACK (pwd_ui->stack), GTK_WIDGET (con_content));
-    adw_view_stack_page_set_title (con_page, "Connection");
+    adw_view_stack_page_set_title (con_page, _("Connection"));
 
     adw_toolbar_view_set_content (switcher, pwd_ui->stack);
     adw_clamp_set_child (container, GTK_WIDGET (switcher));
