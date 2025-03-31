@@ -1,10 +1,17 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.12.0)
 project(passwordchecker VERSION 0.1.0 LANGUAGES C)
+
+option (USE_ADWAITA "Use Adwaita theme" ON)
+if (USE_ADWAITA)
+    add_compile_definitions (-DUSE_ADWAITA)
+endif()
 
 find_package (PkgConfig REQUIRED)
 pkg_check_modules (GIO REQUIRED gio-2.0)
 pkg_check_modules (GTK REQUIRED gtk4)
-pkg_check_modules (ADWAITA REQUIRED libadwaita-1)
+if (USE_ADWAITA)
+    pkg_check_modules (ADWAITA REQUIRED libadwaita-1)
+endif ()
 
 set (CMAKE_CURRENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker/)
 
@@ -15,8 +22,17 @@ set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/../data/passwordchecker-user.servi
 
 set (UI_APP_NAME "PasswordCheckerSettings")
 set (SOURCES_UI ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-ui.c)
-set (GLADE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_application.glade
-                 ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_connection.glade)
+
+if (USE_ADWAITA)
+    set (UI_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-page-app.ui
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-page-con.ui
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-switcher.ui
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-window.ui)
+else ()
+    set (UI_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_application.glade
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_connection.glade)
+endif ()
+
 set (ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/icons/error.svg)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
@@ -49,14 +65,19 @@ else()
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${GIO_CFLAGS})
 endif()
 
-target_include_directories(${UI_APP_NAME} PRIVATE ${GTK_INCLUDE_DIRS} ${ADWAITA_INCLUDE_DIRS})
-target_link_libraries(${UI_APP_NAME} PRIVATE ${GTK_LIBRARIES} ${ADWAITA_LIBRARIES})
-target_compile_options(${UI_APP_NAME} PRIVATE ${GTK_CFLAGS} ${ADWAITA_CFLAGS})
+target_include_directories(${UI_APP_NAME} PRIVATE ${GTK_INCLUDE_DIRS})
+target_link_libraries(${UI_APP_NAME} PRIVATE ${GTK_LIBRARIES})
+target_compile_options(${UI_APP_NAME} PRIVATE ${GTK_CFLAGS})
+if (USE_ADWAITA)
+    target_include_directories(${UI_APP_NAME} PRIVATE ${ADWAITA_INCLUDE_DIRS})
+    target_link_libraries(${UI_APP_NAME} PRIVATE ${ADWAITA_LIBRARIES})
+    target_compile_options(${UI_APP_NAME} PRIVATE ${ADWAITA_CFLAGS})
+endif ()
 
 install (TARGETS ${UI_APP_NAME}
          DESTINATION /usr/bin)
 
-install (FILES ${GLADE_FILES}
+install (FILES ${UI_FILES}
          DESTINATION /usr/share/${UI_APP_NAME}/ui)
 
 install (FILES ${ICON_FILES}
