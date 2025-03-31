@@ -31,6 +31,8 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *button_conn;
     GtkWidget *button_app;
 
+    GtkWidget *stack;
+
     guint owner_id;
 } PasswordCheckerUI;
 
@@ -306,28 +308,6 @@ cb_button_app (GtkWidget *button,
 }
 
 static void
-cb_switch_page (GtkNotebook *notebook,
-                GtkWidget   *page,
-                guint        page_num,
-                gpointer     user_data)
-{
-    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
-
-    switch (page_num)
-    {
-        case (0):
-            pwd_ui->on_enter_button = pwd_ui->button_conn;
-            break;
-        case (1):
-            pwd_ui->on_enter_button = pwd_ui->button_app;
-            break;
-        default:
-            pwd_ui->on_enter_button = NULL;
-            break;
-    }
-}
-
-static void
 #ifdef USE_USEADWAITA
 activate (AdwApplication *app,
           gpointer        user_data)
@@ -361,7 +341,8 @@ activate (GtkApplication* app,
     }
 
     AdwToolbarView *switcher = ADW_TOOLBAR_VIEW (gtk_builder_get_object (builder, "toolbar-page"));
-    AdwViewStack *stack = ADW_VIEW_STACK (gtk_builder_get_object (builder, "stack"));
+    // AdwViewStack *stack = ADW_VIEW_STACK (gtk_builder_get_object (builder, "stack"));
+    pwd_ui->stack = GTK_WIDGET (gtk_builder_get_object (builder, "stack"));
 
     gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-page-app.ui", &error);
     if (error){
@@ -379,7 +360,8 @@ activate (GtkApplication* app,
     pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
 
     GtkBox *app_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-application"));
-    AdwViewStackPage *app_page = adw_view_stack_add (stack, GTK_WIDGET (app_content));
+    gtk_widget_set_name (GTK_WIDGET (app_content), "notebook-page-application");
+    AdwViewStackPage *app_page = adw_view_stack_add (ADW_VIEW_STACK (pwd_ui->stack), GTK_WIDGET (app_content));
     adw_view_stack_page_set_title (app_page, "Application");
 
     gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-page-con.ui", &error);
@@ -394,10 +376,11 @@ activate (GtkApplication* app,
     pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
 
     GtkBox *con_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-connection"));
-    AdwViewStackPage *con_page = adw_view_stack_add (stack, GTK_WIDGET (con_content));
+    gtk_widget_set_name (GTK_WIDGET (con_content), "notebook-page-connection");
+    AdwViewStackPage *con_page = adw_view_stack_add (ADW_VIEW_STACK (pwd_ui->stack), GTK_WIDGET (con_content));
     adw_view_stack_page_set_title (con_page, "Connection");
 
-    adw_toolbar_view_set_content (switcher, GTK_WIDGET (stack));
+    adw_toolbar_view_set_content (switcher, pwd_ui->stack);
     adw_clamp_set_child (container, GTK_WIDGET (switcher));
 
     adw_toolbar_view_set_content (toolbar, GTK_WIDGET (container));
@@ -423,11 +406,11 @@ activate (GtkApplication* app,
 
     GtkWidget *main_container = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 
-    GtkWidget *notebook = gtk_notebook_new ();
-    g_signal_connect (G_OBJECT (notebook), "switch-page", G_CALLBACK (cb_switch_page), pwd_ui);
+    pwd_ui->stack = gtk_notebook_new ();
 
     /* page 1 */
     GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
+    gtk_widget_set_name (GTK_WIDGET (box_page_connection), "notebook-page-connection");
 
     GtkWidget *label1 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label1"));
     gtk_label_set_text (GTK_LABEL (label1), _("LDAP server address"));
@@ -438,7 +421,7 @@ activate (GtkApplication* app,
     gtk_widget_set_tooltip_text (label2, _("Specifies the search root for the desired record (e.g. 'dc=domain,dc=test,dc=ru')"));
 
     GtkWidget *label_page_connection = gtk_label_new (_("Connection"));
-    gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_connection), label_page_connection);
+    gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_connection), label_page_connection);
     g_object_unref (label_page_connection);
 
     gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), _("Apply connection settings"));
@@ -473,13 +456,14 @@ activate (GtkApplication* app,
     gtk_widget_set_tooltip_text (label_freq, _("Sets the frequency of password change warning output"));
 
     GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
+    gtk_widget_set_name (GTK_WIDGET (box_page_connection), "notebook-page-application");
     GtkWidget *label_page_application = gtk_label_new (_("Application"));
-    gtk_notebook_append_page (GTK_NOTEBOOK (notebook), GTK_WIDGET (box_page_application), label_page_application);
+    gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_application), label_page_application);
     g_object_unref (label_page_application);
 
     gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), _("Apply application settings"));
 
-    gtk_box_append (GTK_BOX (main_container), notebook);
+    gtk_box_append (GTK_BOX (main_container), pwd_ui->stack);
     gtk_window_set_child (GTK_WINDOW (window), main_container);
 #endif
 
@@ -551,8 +535,22 @@ on_press_enter (GSimpleAction *action,
 {
     PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
 
-    if (pwd_ui->on_enter_button != NULL) {
-        g_signal_emit_by_name (pwd_ui->on_enter_button, "clicked", pwd_ui);
+#ifdef USE_ADWAITA
+    GtkWidget *stack_page =  adw_view_stack_get_visible_child (ADW_VIEW_STACK (pwd_ui->stack));
+    const gchar* id_page = gtk_widget_get_name (stack_page);
+#else
+    gint stack_page_number = gtk_notebook_get_current_page (GTK_NOTEBOOK (pwd_ui->stack));
+    gchar *id_page = NULL;
+    if (stack_page_number == 0)
+        id_page = "notebook-page-connection";
+    else
+        id_page = "notebook-page-application";
+#endif
+
+    if (g_strcmp0 (id_page, "notebook-page-connection") == 0) {
+        g_signal_emit_by_name (pwd_ui->button_conn, "clicked", pwd_ui);
+    } else if (g_strcmp0 (id_page, "notebook-page-application") == 0) {
+        g_signal_emit_by_name (pwd_ui->button_app, "clicked", pwd_ui);
     }
 }
 
