@@ -3,12 +3,13 @@ project(passwordchecker VERSION 0.1.0 LANGUAGES C)
 
 option (USE_ADWAITA "Use Adwaita theme" ON)
 if (USE_ADWAITA)
-    add_compile_definitions (-DUSE_ADWAITA)
+    add_definitions(-DUSE_ADWAITA)
 endif()
 
 find_package (PkgConfig REQUIRED)
 pkg_check_modules (GIO REQUIRED gio-2.0)
 pkg_check_modules (GTK REQUIRED gtk4)
+pkg_check_modules (WBCLIENT REQUIRED wbclient)
 if (USE_ADWAITA)
     pkg_check_modules (ADWAITA REQUIRED libadwaita-1)
 endif ()
@@ -17,7 +18,9 @@ set (CMAKE_CURRENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker/)
 
 set (GSCHEMA ${CMAKE_CURRENT_SOURCE_DIR}/../data/org.altlinux.passwordchecker.gschema.xml)
 
-set (SOURCES ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker.c ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-ldap.c)
+set (SOURCES ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker.c
+             ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-ldap.c
+             ${CMAKE_CURRENT_SOURCE_DIR}winbind-helper.c)
 set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/../data/passwordchecker-user.service)
 
 set (UI_APP_NAME "PasswordCheckerSettings")
@@ -60,9 +63,9 @@ elseif (NOT LIBLBER_LIBRARY)
 elseif (NOT SASL_INCLUDE_DIR)
     message (FATAL_ERROR "SASL_INCLUDE_DIR not found!")
 else()
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${LIBLDAP_INCLUDE_DIR} ${SASL_INCLUDE_DIR} ${GIO_INCLUDE_DIRS})
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${LIBLDAP_LIBRARY}  ${LIBLBER_LIBRARY} ${GIO_LIBRARIES})
-    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${GIO_CFLAGS})
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${LIBLDAP_INCLUDE_DIR} ${SASL_INCLUDE_DIR} ${GIO_INCLUDE_DIRS} ${WBCLIENT_INCLUDE_DIRS})
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${LIBLDAP_LIBRARY}  ${LIBLBER_LIBRARY} ${GIO_LIBRARIES} ${WBCLIENT_LIBRARIES})
+    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${GIO_CFLAGS} ${WBCLIENT_CFLAGS})
 endif()
 
 target_include_directories(${UI_APP_NAME} PRIVATE ${GTK_INCLUDE_DIRS})
