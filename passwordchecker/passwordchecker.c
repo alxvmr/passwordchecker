@@ -1,6 +1,10 @@
 #include "passwordchecker-ldap.h"
 #include "winbind-helper.h"
 #include <math.h>
+#include <locale.h>
+#include <libintl.h>
+
+#define _(STRING) gettext(STRING)
 
 static gint64 START_WARNING_TIME; //days
 static gint64 WARNING_FREQ;       //mins
@@ -78,7 +82,7 @@ send_warning (gpointer user_data)
     gchar *mess = NULL;
 
     gchar *expiry_time = (gchar *) user_data;
-    mess = g_strdup_printf ("Your password expires on %s", expiry_time);
+    mess = g_strdup_printf (_("Your password expires on %s"), expiry_time);
 
     if (!create_connection (pwc, &conn)) {
         g_free (mess);
@@ -89,7 +93,7 @@ send_warning (gpointer user_data)
                                "passwordchecker",
                                0u,
                                "",
-                               "Password change required",
+                               _("Password change required"),
                                mess,
                                NULL,
                                NULL,
@@ -300,6 +304,10 @@ int
 main ()
 {
     // PasswordcheckerLdap *pwc_ldap = passwordchecker_ldap_new ("ldap://srt-dc1.smb.basealt.ru", "dc=smb,dc=basealt,dc=ru");
+    setlocale (LC_ALL, "");
+    bindtextdomain ("passwordchecker", "/usr/share/locale/");
+    textdomain ("passwordchecker");
+    
     gint rc;
     GError *error = NULL;
 
