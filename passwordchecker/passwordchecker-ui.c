@@ -202,7 +202,7 @@ cb_button_conn (GtkWidget *button,
     g_settings_set_string (pwd_ui->settings, "url", url_new);
     g_settings_set_string (pwd_ui->settings, "base-dn", base_dn_new);
 
-    send_notification ("PasswordChecker: change settings", "Connection settings have been successfully changed", pwd_ui);
+    send_notification (_("PasswordChecker: change settings"), _("Connection settings have been successfully changed"), pwd_ui);
 }
 
 static gboolean
@@ -303,7 +303,7 @@ cb_button_app (GtkWidget *button,
         g_settings_set_int64 (pwd_ui->settings, "start-warning-time", gint64_start_warning_time);
         g_settings_set_int64 (pwd_ui->settings, "warning-frequencies", gint64_warning_freq);
 
-        send_notification ("PasswordChecker: change settings", "Application settings have been successfully changed", pwd_ui);
+        send_notification (_("PasswordChecker: change settings"), _("Application settings have been successfully changed"), pwd_ui);
     }
 }
 
