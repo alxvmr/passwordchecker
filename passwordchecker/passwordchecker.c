@@ -18,6 +18,7 @@ typedef struct _PasswordChecker {
     GMainLoop *loop;
     const gchar *app_id;
     guint owner_id;
+    guint signal_subscription_id;
 
     PasswordcheckerLdap *pwc_ldap;
     GSettings *settings;
@@ -38,6 +39,69 @@ cleanup (PasswordChecker *pwc)
 
     if (pwc->expiry_time != NULL)
         g_free (pwc->expiry_time);
+}
+
+static void
+on_subprocess_finished (GObject *source_object,
+                        GAsyncResult *result,
+                        gpointer user_data)
+{
+    GError *error = NULL;
+    GSubprocess *subprocess = G_SUBPROCESS (source_object);
+
+    gint exit_code = g_subprocess_wait_finish (subprocess, result, &error);
+
+    if (error) {
+        g_printerr("Error waiting for subprocess: %s\n", error->message);
+        g_error_free(error);
+    } else {
+        g_print("Subprocess exited with code: %d\n", exit_code);
+    }
+
+    g_object_unref (subprocess);
+}
+
+static void
+on_change_password ()
+{
+    // g_print ("<Run change password>\n");
+    
+    GSubprocess *subprocess = NULL;
+    GError *error = NULL;
+
+    subprocess = g_subprocess_new (G_SUBPROCESS_FLAGS_NONE,
+                                   &error,
+                                   "userpasswd", NULL);
+
+    if (subprocess == NULL) {
+        g_printerr ("Error creating subprocess: %s\n", error->message);
+        g_error_free (error);
+    } else {
+        g_subprocess_wait_async (subprocess, NULL, on_subprocess_finished, NULL);
+    }
+}
+
+static void
+on_action_invoked (GDBusConnection *conn,
+                   const gchar     *sender_name,
+                   const gchar     *object_path,
+                   const gchar     *interface_name,
+                   const gchar     *signal_name,
+                   GVariant        *parameters,
+                   gpointer         user_data)
+{
+    gchar *action_key = NULL;
+    guint id;
+
+    g_variant_get (parameters, "(us)", &id, &action_key);
+
+    if (g_strcmp0 (action_key, "change-password") == 0) {
+        on_change_password ();
+    }
+
+    if (action_key != NULL) {
+        g_free (action_key);
+    }
 }
 
 static gboolean
@@ -65,11 +129,27 @@ create_connection (PasswordChecker  *pwc,
 
     if (pwc->owner_id == 0) {
         g_printerr ("Failed to register a name on DBus: %s\n", pwc->app_id);
-        g_object_unref (conn);
+        g_object_unref (*conn);
+        *conn = FALSE;
         return FALSE;
     }
 
     return TRUE;
+}
+
+static void
+signal_unsubscribe ()
+{
+    if (pwc->signal_subscription_id != 0) {
+        GDBusConnection *cur_conn = NULL;
+
+        cur_conn = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+        if (cur_conn != NULL) {
+            g_dbus_connection_signal_unsubscribe (cur_conn, pwc->signal_subscription_id);
+            g_object_unref (cur_conn);
+        }
+        pwc->signal_subscription_id = 0;
+    }
 }
 
 gboolean
@@ -80,6 +160,9 @@ send_warning (gpointer user_data)
     GDBusConnection *conn = NULL;
     GError *error = NULL;
     gchar *mess = NULL;
+    GVariantBuilder actions_builder;
+
+    signal_unsubscribe ();
 
     gchar *expiry_time = (gchar *) user_data;
     mess = g_strdup_printf (_("Your password expires on %s"), expiry_time);
@@ -89,13 +172,28 @@ send_warning (gpointer user_data)
         return FALSE;
     }
 
+    g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
+    g_variant_builder_add (&actions_builder, "s", "change-password");
+    g_variant_builder_add (&actions_builder, "s", _("Change password"));
+
+    pwc->signal_subscription_id = g_dbus_connection_signal_subscribe (conn,
+                                                                      "org.freedesktop.Notifications",
+                                                                      "org.freedesktop.Notifications",
+                                                                      "ActionInvoked",
+                                                                      "/org/freedesktop/Notifications",
+                                                                      NULL,
+                                                                      G_DBUS_SIGNAL_FLAGS_NONE,
+                                                                      on_action_invoked,
+                                                                      NULL,
+                                                                      NULL);
+
     parametrs = g_variant_new ("(susssasa{sv}i)",
                                "passwordchecker",
                                0u,
                                "",
                                _("Password change required"),
                                mess,
-                               NULL,
+                               &actions_builder,
                                NULL,
                                -1,
                                NULL);
@@ -307,11 +405,12 @@ main ()
     setlocale (LC_ALL, "");
     bindtextdomain ("passwordchecker", "/usr/share/locale/");
     textdomain ("passwordchecker");
-    
+
     gint rc;
     GError *error = NULL;
 
     pwc = g_new (PasswordChecker, 1);
+    pwc->signal_subscription_id = 0;
     pwc->app_id = "org.altlinux.passwordchecker";
     activate (pwc);
 
