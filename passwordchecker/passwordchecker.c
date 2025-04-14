@@ -62,7 +62,7 @@ on_subprocess_finished (GObject *source_object,
 }
 
 static void
-on_change_password ()
+on_run_subprocess (const gchar *command)
 {
     // g_print ("<Run change password>\n");
     
@@ -71,7 +71,7 @@ on_change_password ()
 
     subprocess = g_subprocess_new (G_SUBPROCESS_FLAGS_NONE,
                                    &error,
-                                   "userpasswd", NULL);
+                                   command, NULL);
 
     if (subprocess == NULL) {
         g_printerr ("Error creating subprocess: %s\n", error->message);
@@ -96,7 +96,10 @@ on_action_invoked (GDBusConnection *conn,
     g_variant_get (parameters, "(us)", &id, &action_key);
 
     if (g_strcmp0 (action_key, "change-password") == 0) {
-        on_change_password ();
+        on_run_subprocess ("userpasswd");
+    }
+    else if (g_strcmp0 (action_key, "change-settings") == 0) {
+        on_run_subprocess ("PasswordCheckerSettings");
     }
 
     if (action_key != NULL) {
@@ -175,6 +178,8 @@ send_warning (gpointer user_data)
     g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
     g_variant_builder_add (&actions_builder, "s", "change-password");
     g_variant_builder_add (&actions_builder, "s", _("Change password"));
+    g_variant_builder_add (&actions_builder, "s", "change-settings");
+    g_variant_builder_add (&actions_builder, "s", _("Change the notification settings"));
 
     pwc->signal_subscription_id = g_dbus_connection_signal_subscribe (conn,
                                                                       "org.freedesktop.Notifications",
