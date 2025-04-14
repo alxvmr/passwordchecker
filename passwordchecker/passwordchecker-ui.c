@@ -27,6 +27,7 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *error_start;
     GtkWidget *error_freq;
 
+    GtkWidget *window;
     GtkWidget *on_enter_button;
     GtkWidget *button_conn;
     GtkWidget *button_app;
@@ -317,9 +318,14 @@ activate (GtkApplication* app,
 #endif
 {
     PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
-    GtkWidget *window = NULL;
-    GError *error = NULL;
 
+    pwd_ui->window = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (pwd_ui->app)));
+    if (pwd_ui->window != NULL) {
+        gtk_window_present (GTK_WINDOW (pwd_ui->window));
+        return;
+    }
+
+    GError *error = NULL;
     GtkBuilder *builder = gtk_builder_new ();
 
 #ifdef USE_ADWAITA
@@ -385,9 +391,9 @@ activate (GtkApplication* app,
 
     adw_toolbar_view_set_content (toolbar, GTK_WIDGET (container));
 
-    window = adw_application_window_new (GTK_APPLICATION (app));
+    pwd_ui->window = adw_application_window_new (GTK_APPLICATION (app));
 
-    adw_application_window_set_content (ADW_APPLICATION_WINDOW (window), GTK_WIDGET (toolbar));
+    adw_application_window_set_content (ADW_APPLICATION_WINDOW (pwd_ui->window), GTK_WIDGET (toolbar));
 
 #else
     gtk_builder_add_from_file (builder, UI_PATH "/ui/page_connection.glade", &error);
@@ -401,8 +407,8 @@ activate (GtkApplication* app,
     pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
     pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
 
-    window = gtk_application_window_new (app);
-    gtk_window_set_title (GTK_WINDOW (window), "PasswordCheckerSettings");
+    pwd_ui->window = gtk_application_window_new (app);
+    gtk_window_set_title (GTK_WINDOW (pwd_ui->window), "PasswordCheckerSettings");
 
     GtkWidget *main_container = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 
@@ -464,7 +470,7 @@ activate (GtkApplication* app,
     gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), _("Apply application settings"));
 
     gtk_box_append (GTK_BOX (main_container), pwd_ui->stack);
-    gtk_window_set_child (GTK_WINDOW (window), main_container);
+    gtk_window_set_child (GTK_WINDOW (pwd_ui->window), main_container);
 #endif
 
     g_signal_connect (G_OBJECT (pwd_ui->button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
@@ -513,8 +519,8 @@ activate (GtkApplication* app,
                                   GINT_TO_POINTER (TO_MINS),
                                   NULL);                                
 
-    gtk_window_set_default_size (GTK_WINDOW (window), 600, 400);
-    gtk_window_present (GTK_WINDOW (window));
+    gtk_window_set_default_size (GTK_WINDOW (pwd_ui->window), 600, 400);
+    gtk_window_present (GTK_WINDOW (pwd_ui->window));
 
     g_object_unref (builder);
 }
