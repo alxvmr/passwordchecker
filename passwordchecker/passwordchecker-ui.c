@@ -37,6 +37,8 @@ typedef struct _PasswordcheckerUI {
     guint owner_id;
 } PasswordCheckerUI;
 
+static guint NOTIFICATION_ID = 0;
+
 enum {
     TO_MINS,
     TO_HOURS,
@@ -156,6 +158,36 @@ send_notification (const gchar       *title,
         return;
     }
 
+    if (NOTIFICATION_ID != 0) {
+        GVariant *reply = NULL;
+        GVariant *params = NULL;
+
+        params = g_variant_new ("(u)", NOTIFICATION_ID);
+
+        reply = g_dbus_connection_call_sync (conn,
+                                             "org.freedesktop.Notifications",
+                                             "/org/freedesktop/Notifications",
+                                             "org.freedesktop.Notifications",
+                                             "CloseNotification",
+                                             params,
+                                             NULL,
+                                             G_DBUS_CALL_FLAGS_NONE,
+                                             -1,
+                                             NULL,
+                                             &error);
+        if (error) {
+            g_printerr ("Error closing notification: %s\n", error->message);
+            g_error_free (error);
+            error = NULL;
+        }
+
+        if (reply != NULL) {
+            g_variant_unref (reply);
+        }
+
+        NOTIFICATION_ID = 0;
+    }
+
     parametrs = g_variant_new ("(susssasa{sv}i)",
                                "PasswordCheckerSettings",
                                pwd_ui->id,
@@ -184,6 +216,8 @@ send_notification (const gchar       *title,
         g_error_free (error);
         return;
     }
+
+    g_variant_get (reply, "(u)", &NOTIFICATION_ID);
 
     g_variant_unref (reply);
     g_bus_unown_name (pwd_ui->owner_id);
