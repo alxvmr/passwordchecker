@@ -163,6 +163,7 @@ create_connection (PasswordChecker  *pwc,
         g_printerr ("Failed to register a name on DBus: %s\n", pwc->app_id);
         g_object_unref (*conn);
         *conn = FALSE;
+        *conn = NULL;
         return FALSE;
     }
 

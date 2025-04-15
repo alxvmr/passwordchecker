@@ -135,6 +135,7 @@ create_connection (PasswordCheckerUI  *pwd_ui,
     if (pwd_ui->owner_id == 0) {
         g_printerr ("Failed to register a name on DBus: %s\n", pwd_ui->id);
         g_object_unref (conn);
+        *conn = NULL;
         return FALSE;
     }
 
