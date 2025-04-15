@@ -431,43 +431,12 @@ activate (GtkApplication* app,
     adw_application_window_set_content (ADW_APPLICATION_WINDOW (pwd_ui->window), GTK_WIDGET (toolbar));
 
 #else
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/page_connection.glade", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    pwd_ui->url = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry1"));
-    pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
-    pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
-
     pwd_ui->window = gtk_application_window_new (app);
     gtk_window_set_title (GTK_WINDOW (pwd_ui->window), "PasswordCheckerSettings");
-
     GtkWidget *main_container = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-
     pwd_ui->stack = gtk_notebook_new ();
 
     /* page 1 */
-    GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
-    gtk_widget_set_name (GTK_WIDGET (box_page_connection), "notebook-page-connection");
-
-    GtkWidget *label1 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label1"));
-    gtk_label_set_text (GTK_LABEL (label1), _("LDAP server address"));
-    gtk_widget_set_tooltip_text (label1, _("Specifies the LDAP server address (e.g. ldap://dc1.domain.test.ru)"));
-
-    GtkWidget *label2 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label2"));
-    gtk_label_set_text (GTK_LABEL (label2), _("Search root"));
-    gtk_widget_set_tooltip_text (label2, _("Specifies the search root for the desired record (e.g. 'dc=domain,dc=test,dc=ru')"));
-
-    GtkWidget *label_page_connection = gtk_label_new (_("Connection"));
-    gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_connection), label_page_connection);
-    g_object_unref (label_page_connection);
-
-    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), _("Apply connection settings"));
-
-    /* page 2 */
     gtk_builder_add_from_file (builder, UI_PATH "/ui/page_application.glade", &error);
     if (error){
         g_printerr("Error loading Glade file: %s\n", error->message);
@@ -497,19 +466,48 @@ activate (GtkApplication* app,
     gtk_widget_set_tooltip_text (label_freq, _("Sets the frequency of password change warning output"));
 
     GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
-    gtk_widget_set_name (GTK_WIDGET (box_page_connection), "notebook-page-application");
+    gtk_widget_set_name (GTK_WIDGET (box_page_application), "notebook-page-application");
     GtkWidget *label_page_application = gtk_label_new (_("Application"));
     gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_application), label_page_application);
     g_object_unref (label_page_application);
 
     gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), _("Apply application settings"));
 
+    gtk_builder_add_from_file (builder, UI_PATH "/ui/page_connection.glade", &error);
+    if (error){
+        g_printerr("Error loading Glade file: %s\n", error->message);
+        g_clear_error(&error);
+        return;
+    }
+
+    pwd_ui->url = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry1"));
+    pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
+    pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
+
+    /* page 2 */
+    GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
+    gtk_widget_set_name (GTK_WIDGET (box_page_connection), "notebook-page-connection");
+
+    GtkWidget *label1 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label1"));
+    gtk_label_set_text (GTK_LABEL (label1), _("LDAP server address"));
+    gtk_widget_set_tooltip_text (label1, _("Specifies the LDAP server address (e.g. ldap://dc1.domain.test.ru)"));
+
+    GtkWidget *label2 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label2"));
+    gtk_label_set_text (GTK_LABEL (label2), _("Search root"));
+    gtk_widget_set_tooltip_text (label2, _("Specifies the search root for the desired record (e.g. 'dc=domain,dc=test,dc=ru')"));
+
+    GtkWidget *label_page_connection = gtk_label_new (_("Connection"));
+    gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_connection), label_page_connection);
+    g_object_unref (label_page_connection);
+
+    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), _("Apply connection settings"));
+
     gtk_box_append (GTK_BOX (main_container), pwd_ui->stack);
     gtk_window_set_child (GTK_WINDOW (pwd_ui->window), main_container);
 #endif
 
-    g_signal_connect (G_OBJECT (pwd_ui->button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
     g_signal_connect (G_OBJECT (pwd_ui->button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
+    g_signal_connect (G_OBJECT (pwd_ui->button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
 
     g_settings_bind (pwd_ui->settings, "url", pwd_ui->url, "text", G_SETTINGS_BIND_GET);
     g_settings_bind (pwd_ui->settings, "base-dn", pwd_ui->base_dn, "text", G_SETTINGS_BIND_GET);
@@ -583,9 +581,9 @@ on_press_enter (GSimpleAction *action,
     gint stack_page_number = gtk_notebook_get_current_page (GTK_NOTEBOOK (pwd_ui->stack));
     gchar *id_page = NULL;
     if (stack_page_number == 0)
-        id_page = "notebook-page-connection";
-    else
         id_page = "notebook-page-application";
+    else
+        id_page = "notebook-page-connection";
 #endif
 
     if (g_strcmp0 (id_page, "notebook-page-connection") == 0) {
