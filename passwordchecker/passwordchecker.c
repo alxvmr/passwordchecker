@@ -394,7 +394,6 @@ settings_changed (GSettings *settings,
 
 static gboolean
 load_gsettings (gchar               *schema_name,
-                PasswordcheckerLdap *pwc_ldap,
                 GSettings           **settings,
                 gulong              *handler_id)
 {
@@ -431,20 +430,15 @@ load_gsettings (gchar               *schema_name,
         }
     }
 
-    if (g_strcmp0 (base_dn, "") == 0 && url != NULL) {
-        g_free (base_dn);
-        base_dn = NULL;
-        if (get_base_dn (url, &base_dn)) {
-            if (! g_settings_set_string (*settings, "base-dn", base_dn)) {
-                g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
-            }
+    pwc->pwc_ldap = passwordchecker_ldap_new (url, base_dn);
+
+    if (g_strcmp0 (base_dn, "") == 0) {
+        if (! g_settings_set_string (*settings, "base-dn", pwc->pwc_ldap->base_dn)) {
+            g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
         }
     }
 
-    passwordchecker_ldap_set_url (url, pwc_ldap);
-    passwordchecker_ldap_set_base_dn (base_dn, pwc_ldap);
-
-    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc_ldap);
+    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc->pwc_ldap);
 
     g_free (url);
     g_free (base_dn);
@@ -455,9 +449,7 @@ load_gsettings (gchar               *schema_name,
 static gint
 activate (PasswordChecker *pwc)
 {
-    pwc->pwc_ldap = passwordchecker_ldap_new (NULL, NULL);
-
-    if (!load_gsettings ("org.altlinux.passwordchecker", pwc->pwc_ldap, &pwc->settings, &pwc->handler_id))
+    if (!load_gsettings ("org.altlinux.passwordchecker", &pwc->settings, &pwc->handler_id))
         return EXIT_FAILURE;
 
     check_password (pwc->pwc_ldap);

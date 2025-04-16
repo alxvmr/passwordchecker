@@ -62,6 +62,22 @@ ldap_sasl_interact (LDAP *ld,
     return LDAP_SUCCESS;
 }
 
+static gchar*
+get_username ()
+{
+    uid_t uid = getuid();
+
+    struct passwd pwd;
+    struct passwd *pwd_res = NULL;
+    gchar buf[4096];
+
+    int ret = getpwuid_r (uid, &pwd, buf, sizeof(buf), &pwd_res);
+    if (ret) {
+        return NULL;
+    }
+    return g_strdup (pwd.pw_name);
+}
+
 static gboolean
 get_date_from_ad_timestamp (gchar     *s,
                             GDateTime **output)
@@ -107,6 +123,65 @@ set_options_for_ld (LDAP *ld)
     return TRUE;
 }
 
+void
+close_ldap_conn (LDAP *ld)
+{
+    gint rc;
+
+    if (ld != NULL) {
+        rc = ldap_unbind_ext_s (ld, NULL, NULL);
+        ld = NULL;
+        if (rc != 0) {
+            g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
+        }
+    }
+}
+
+LDAP*
+open_ldap_conn (PasswordcheckerLdap  *self)
+{
+    LDAP *ld = NULL;
+    gint rc, rc_set_opt;
+
+    if (self->url == NULL) {
+        g_printerr ("open_ldap_conn failed: Unable to open a connection to the ldap server. URL is empty\n");
+        return NULL;
+    }
+
+    rc = ldap_initialize (&ld, self->url);
+    if (rc != LDAP_SUCCESS) {
+        g_printerr ("ldap_initialize failed: %s\n", ldap_err2string (rc));
+        close_ldap_conn (ld);
+        return NULL;
+    }
+
+    if (!set_options_for_ld (ld)) {
+        close_ldap_conn (ld);
+        return NULL;
+    }
+
+    // Setup sasl_defaults_gssapi
+    struct sasl_defaults_gssapi defaults;
+    defaults.mech = (gchar *) "GSSAPI";
+    ldap_get_option(ld, LDAP_OPT_X_SASL_REALM, &defaults.realm);
+    ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHCID, &defaults.authcid);
+    ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHZID, &defaults.authzid);
+    defaults.passwd = NULL;
+
+    rc = ldap_sasl_interactive_bind_s (ld, NULL, defaults.mech, NULL, NULL, LDAP_SASL_QUIET, ldap_sasl_interact, &defaults);
+    ldap_memfree(defaults.realm);
+    ldap_memfree(defaults.authcid);
+    ldap_memfree(defaults.authzid);
+
+    if (rc != LDAP_SUCCESS) {
+        g_printerr ("ldap_sasl_interactive_bind_s failed: %s\n", ldap_err2string (rc));
+        close_ldap_conn (ld);
+        return NULL;
+    }
+
+    return ld;
+}
+
 /*
   The function is intended for obtaining the value
   of one specific attribute from one record
@@ -115,6 +190,7 @@ set_options_for_ld (LDAP *ld)
 static gboolean
 get_value_of_attr (LDAP *ld,
                    gchar *base_dn,
+                   int    scope,
                    gchar *filter,
                    gchar *attr,
                    gchar **output_value)
@@ -136,7 +212,7 @@ get_value_of_attr (LDAP *ld,
 
     rc = ldap_search_ext_s (ld,
                             base_dn,
-                            LDAP_SCOPE_SUBTREE, // subtree or base???
+                            scope, // subtree or base???
                             filter,
                             attrs,
                             0,
@@ -178,92 +254,98 @@ get_value_of_attr (LDAP *ld,
 }
 
 gboolean
-passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
-                                    GDateTime           **datetime)
+get_base_dn (PasswordcheckerLdap  *self,
+             gchar               **base_dn)
 {
-    LDAP *ld;
-    gint rc, rc_set_opt;
-    gchar *value;
+    LDAP *ld = NULL;
+    gchar *value = NULL;
+    gint rc;
 
-    if (self->url == NULL || self->base_dn == NULL)
+    *base_dn = NULL;
+
+    ld = open_ldap_conn (self);
+    if (ld == NULL) {
         return FALSE;
-
-    rc = ldap_initialize (&ld, self->url);
-    if (rc != LDAP_SUCCESS) {
-        g_printerr ("ldap_initialize failed: %s\n", ldap_err2string (rc));
-        goto close;
     }
 
-    if (!set_options_for_ld (ld)) 
-        goto close;
-
-    // Setup sasl_defaults_gssapi
-    struct sasl_defaults_gssapi defaults;
-    defaults.mech = (gchar *) "GSSAPI";
-    ldap_get_option(ld, LDAP_OPT_X_SASL_REALM, &defaults.realm);
-    ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHCID, &defaults.authcid);
-    ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHZID, &defaults.authzid);
-    defaults.passwd = NULL;
-
-    rc = ldap_sasl_interactive_bind_s (ld, NULL, defaults.mech, NULL, NULL, LDAP_SASL_QUIET, ldap_sasl_interact, &defaults);
-    ldap_memfree(defaults.realm);
-    ldap_memfree(defaults.authcid);
-    ldap_memfree(defaults.authzid);
-
-    gboolean res = get_value_of_attr (ld, self->base_dn, self->filter, self->attr, &value);
+    gchar *attr = "defaultNamingContext";
+    gboolean res = get_value_of_attr (ld, "", LDAP_SCOPE_BASE, NULL, attr, &value);
 
     if (!res)
         goto close;
 
     if (!value)
-        g_print ("No value\n");
+        g_print ("Failed to evaluate base_dn\n");
+    else {
+        *base_dn = g_strdup (value);
+        g_free (value);
+
+        close_ldap_conn (ld);
+        return TRUE;
+    }
+
+    goto close;
+
+close:
+    close_ldap_conn (ld);
+    return FALSE;
+}
+
+gboolean
+passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
+                                    GDateTime           **datetime)
+{
+    LDAP *ld = NULL;
+    gchar *value = NULL;
+    gchar *filter = NULL;
+    gchar *username = NULL;
+    gchar *attr = NULL;
+    gint rc;
+
+    if (self->url == NULL || self->base_dn == NULL)
+        return FALSE;
+
+    ld = open_ldap_conn (self);
+    if (ld == NULL) {
+        return FALSE;
+    }
+
+    username = get_username ();
+    if (!username) {
+        g_printerr ("Username is NULL\n");
+        close_ldap_conn (ld);
+        return FALSE;
+    }
+
+    filter = g_strdup_printf("(&(!(userAccountControl:1.2.840.113556.1.4.803:=65536))(sAMAccountName=%s))", username);
+    attr = "msDS-UserPasswordExpiryTimeComputed";
+    g_free (username);
+
+    if (!get_value_of_attr (ld, self->base_dn, LDAP_SCOPE_SUBTREE, filter, attr, &value))
+        goto close;
+
+    g_free (filter);
+
+    if (!value)
+        g_print ("Failed to evaluate msDS-UserPasswordExpiryTimeComputed\n");
     else {
         GDateTime *res = NULL;
         if (get_date_from_ad_timestamp (value, &res)) {
             *datetime = res;
-
             g_free (value);
 
-            rc = ldap_unbind_ext_s (ld, NULL, NULL);
-            ld = NULL;
-            if (rc != 0) {
-                g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
-            }
-            
+            close_ldap_conn (ld);
             return TRUE;
         }
-
         g_free (value);
     }
 
     goto close;
 
 close:
-    if (ld != NULL) {
-        rc = ldap_unbind_ext_s (ld, NULL, NULL);
-        ld = NULL;
-        if (rc != 0) {
-            g_printerr ("ldap_unbind failed: %s\n", ldap_err2string (rc));
-        }
-    }
-
+    close_ldap_conn (ld);
+    g_free (filter);
     return FALSE;
-}
-
-static gchar*
-get_username ()
-{
-    uid_t uid = getuid();
-
-    struct passwd pwd;
-    struct passwd *pwd_res = NULL;
-    gchar buf[4096];
-
-    int ret = getpwuid_r (uid, &pwd, buf, sizeof(buf), &pwd_res);
-    if (ret) {
-        return NULL;
-    }
-    return g_strdup (pwd.pw_name);
 }
 
 gboolean
@@ -296,9 +378,10 @@ passwordchecker_ldap_finalize (GObject *object)
 {
     PasswordcheckerLdap *self = PASSWORDCHECKER_LDAP (object);
 
-    g_free (self->url);
-    g_free (self->base_dn);
-    g_free (self->filter);
+    if (self->url != NULL)
+        g_free (self->url);
+    if (self->base_dn != NULL)
+        g_free (self->base_dn);
 
     G_OBJECT_CLASS (passwordchecker_ldap_parent_class)->finalize (object);
 }
@@ -319,16 +402,20 @@ passwordchecker_ldap_new (gchar *url,
 {
     PasswordcheckerLdap *self = PASSWORDCHECKER_LDAP (g_object_new (PASSWORDCHECKER_TYPE_LDAP, NULL));
     self->url = g_strdup (url);
-    self->base_dn = g_strdup (base_dn);
-    self->attr = "msDS-UserPasswordExpiryTimeComputed";
 
-    gchar *username = get_username ();
-    if (!username) {
-        g_printerr ("[ERROR] Username is NULL\n");
+    if (base_dn == NULL || g_strcmp0 (base_dn, "") == 0) {
+        gchar *computed_base_dn = NULL;
+        /*
+           TODO: consider what to do if it is impossible to compute base_dn
+        */
+        if (!get_base_dn (self, &computed_base_dn)) {
+            self->base_dn = g_strdup ("");
+        } else {
+            self->base_dn = computed_base_dn;
+        }
+    } else {
+        self->base_dn = g_strdup (base_dn);
     }
-
-    self->filter = g_strdup_printf("(&(!(userAccountControl:1.2.840.113556.1.4.803:=65536))(sAMAccountName=%s))", username);
-    g_free (username);
 
     return self;
 }
