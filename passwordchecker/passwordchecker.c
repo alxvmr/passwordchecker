@@ -55,14 +55,20 @@ on_subprocess_finished (GObject *source_object,
 {
     GError *error = NULL;
     GSubprocess *subprocess = G_SUBPROCESS (source_object);
+    gchar *command = NULL;
+    command = (gchar*) user_data;
 
     gint exit_code = g_subprocess_wait_finish (subprocess, result, &error);
 
     if (error) {
-        g_printerr("Error waiting for subprocess: %s\n", error->message);
+        g_printerr("Error waiting for subprocess (%s): %s\n", command, error->message);
         g_error_free(error);
     } else {
-        g_print("Subprocess exited with code: %d\n", exit_code);
+        g_print("Subprocess (%s) exited with code: %d\n", command, exit_code);
+    }
+
+    if (command != NULL) {
+        g_free (command);
     }
 
     g_object_unref (subprocess);
@@ -84,7 +90,7 @@ on_run_subprocess (const gchar *command)
         g_printerr ("Error creating subprocess: %s\n", error->message);
         g_error_free (error);
     } else {
-        g_subprocess_wait_async (subprocess, NULL, on_subprocess_finished, NULL);
+        g_subprocess_wait_async (subprocess, NULL, on_subprocess_finished, g_strdup (command));
     }
 }
 
