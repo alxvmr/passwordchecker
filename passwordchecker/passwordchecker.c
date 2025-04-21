@@ -527,6 +527,9 @@ load_gsettings (gchar               *schema_name,
     START_WARNING_TIME = g_settings_get_int64 (*settings, "start-warning-time") * TIME_CONV_START;
     WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV_FREQ;
 
+    pwc->pwc_ldap = passwordchecker_ldap_new (url, base_dn);
+    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc->pwc_ldap);
+
     if (g_strcmp0 (url, "") == 0) {
         g_free (url);
         url = NULL;
@@ -553,15 +556,23 @@ load_gsettings (gchar               *schema_name,
         }
     }
 
-    pwc->pwc_ldap = passwordchecker_ldap_new (url, base_dn);
-
     if (g_strcmp0 (base_dn, "") == 0) {
-        if (! g_settings_set_string (*settings, "base-dn", pwc->pwc_ldap->base_dn)) {
-            g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
+        g_free (base_dn);
+        base_dn = NULL;
+
+        passwordchecker_get_base_dn (pwc->pwc_ldap, &base_dn);
+
+        if (base_dn) {
+            if (! g_settings_set_string (*settings, "base-dn", base_dn)) {
+                g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
+            }
+        } else {
+            gboolean send_fail = send_fail_notification (_("Automatic search root calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"));
+            if (!send_fail) {
+                g_printerr ("Failed to send notification\n");
+            }
         }
     }
-
-    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc->pwc_ldap);
 
     g_free (url);
     g_free (base_dn);

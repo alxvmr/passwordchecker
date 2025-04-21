@@ -36,6 +36,10 @@ gboolean
 passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
                                     GDateTime           **datetime);
 
+gboolean
+passwordchecker_get_base_dn (PasswordcheckerLdap  *self,
+                             gchar               **base_dn);
+
 G_END_DECLS
 
 #endif

@@ -254,8 +254,8 @@ get_value_of_attr (LDAP *ld,
 }
 
 gboolean
-get_base_dn (PasswordcheckerLdap  *self,
-             gchar               **base_dn)
+passwordchecker_get_base_dn (PasswordcheckerLdap  *self,
+                             gchar               **base_dn)
 {
     LDAP *ld = NULL;
     gchar *value = NULL;
@@ -402,20 +402,7 @@ passwordchecker_ldap_new (gchar *url,
 {
     PasswordcheckerLdap *self = PASSWORDCHECKER_LDAP (g_object_new (PASSWORDCHECKER_TYPE_LDAP, NULL));
     self->url = g_strdup (url);
-
-    if (base_dn == NULL || g_strcmp0 (base_dn, "") == 0) {
-        gchar *computed_base_dn = NULL;
-        /*
-           TODO: consider what to do if it is impossible to compute base_dn
-        */
-        if (!get_base_dn (self, &computed_base_dn)) {
-            self->base_dn = g_strdup ("");
-        } else {
-            self->base_dn = computed_base_dn;
-        }
-    } else {
-        self->base_dn = g_strdup (base_dn);
-    }
+    self->base_dn = g_strdup (base_dn);
 
     return self;
 }
