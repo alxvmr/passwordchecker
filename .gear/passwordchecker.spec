@@ -10,7 +10,7 @@ Group:   Other
 Url:     https://github.com/alxvmr/passwordchecker
 
 BuildRequires(pre): rpm-macros-cmake
-BuildRequires: ccmake gcc gettext-tools
+BuildRequires: cmake gcc gettext-tools
 BuildRequires: pkgconfig(gio-2.0) pkgconfig(gtk4)
 BuildRequires: libldap-devel libsasl2-devel libwbclient-devel
 Requires: samba-winbind
@@ -29,8 +29,9 @@ Daemon with GUI settings for password expiration notification
 
 %install
 %cmake_install
+%find_lang %name
 
-%files
+%files -f %name.lang
 %_bindir/%name
 %_bindir/%gui_name
 %_datadir/%gui_name
