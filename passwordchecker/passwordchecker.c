@@ -34,7 +34,6 @@ typedef struct _Notification {
 
 PasswordChecker *pwc = NULL;
 guint CURRENT_WARNING_NOTIFICATION_ID = 0;
-guint CURRENT_FAIL_NOTIFICATION_ID = 0;
 
 static void
 cleanup (PasswordChecker *pwc)
@@ -103,10 +102,16 @@ on_action_invoked (GDBusConnection *conn,
                    GVariant        *parameters,
                    gpointer         user_data)
 {
+    Notification *notification = NULL;
     gchar *action_key = NULL;
     guint id;
 
+    notification = (Notification *) user_data;
     g_variant_get (parameters, "(us)", &id, &action_key);
+
+    if (notification->notification_id != id) {
+        goto exit;
+    }
 
     if (g_strcmp0 (action_key, "change-password") == 0) {
         on_run_subprocess ("userpasswd");
@@ -115,9 +120,12 @@ on_action_invoked (GDBusConnection *conn,
         on_run_subprocess ("PasswordCheckerSettings");
     }
 
+exit:
     if (action_key != NULL) {
         g_free (action_key);
     }
+
+    return;
 }
 
 static void
@@ -129,7 +137,17 @@ on_notification_close (GDBusConnection *conn,
                        GVariant        *parameters,
                        gpointer         user_data)
 {
-    Notification *notification = (Notification *) user_data;
+    Notification *notification = NULL;
+    guint id;
+    guint reason;
+    notification = (Notification *) user_data;
+
+    g_variant_get (parameters, "(uu)", &id, &reason);
+
+    if (notification->notification_id != id) {
+        return;
+    }
+
     if (conn != NULL) {
         if (notification->signal_invoked_action_id != 0) {
             g_dbus_connection_signal_unsubscribe (conn, notification->signal_invoked_action_id );
@@ -241,7 +259,7 @@ send_warning (gpointer user_data)
                                                                                  NULL,
                                                                                  G_DBUS_SIGNAL_FLAGS_NONE,
                                                                                  on_action_invoked,
-                                                                                 NULL,
+                                                                                 notification,
                                                                                  NULL);
 
     notification->signal_notification_closed_id = g_dbus_connection_signal_subscribe (conn,
@@ -314,36 +332,6 @@ send_fail_notification (const gchar       *title,
 
     notification = g_new (Notification, 1);
 
-    if (CURRENT_FAIL_NOTIFICATION_ID != 0) {
-        GVariant *params = NULL;
-        GVariant *reply = NULL;
-
-        params = g_variant_new ("(u)", CURRENT_FAIL_NOTIFICATION_ID);
-
-        reply = g_dbus_connection_call_sync (conn,
-                                             "org.freedesktop.Notifications",
-                                             "/org/freedesktop/Notifications",
-                                             "org.freedesktop.Notifications",
-                                             "CloseNotification",
-                                             params,
-                                             NULL,
-                                             G_DBUS_CALL_FLAGS_NONE,
-                                             -1,
-                                             NULL,
-                                             &error);
-
-        CURRENT_FAIL_NOTIFICATION_ID = 0;
-
-        if (error) {
-            g_printerr ("Error closing notification: %s\n", error->message);
-            g_error_free (error);
-            error = NULL;
-        }
-        if (reply != NULL) {
-            g_variant_unref (reply);
-        }
-    }
-
     g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
     g_variant_builder_add (&actions_builder, "s", "change-settings");
     g_variant_builder_add (&actions_builder, "s", _("Change the application settings"));
@@ -356,7 +344,7 @@ send_fail_notification (const gchar       *title,
                                                                                  NULL,
                                                                                  G_DBUS_SIGNAL_FLAGS_NONE,
                                                                                  on_action_invoked,
-                                                                                 NULL,
+                                                                                 notification,
                                                                                  NULL);
 
     notification->signal_notification_closed_id = g_dbus_connection_signal_subscribe (conn,
@@ -400,7 +388,6 @@ send_fail_notification (const gchar       *title,
     }
 
     g_variant_get (reply, "(u)", &(notification->notification_id));
-    CURRENT_FAIL_NOTIFICATION_ID = notification->notification_id;
 
     g_variant_unref (reply);
     g_bus_unown_name (pwc->owner_id);
@@ -528,7 +515,6 @@ load_gsettings (gchar               *schema_name,
     WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV_FREQ;
 
     pwc->pwc_ldap = passwordchecker_ldap_new (url, base_dn);
-    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc->pwc_ldap);
 
     if (g_strcmp0 (url, "") == 0) {
         g_free (url);
@@ -545,6 +531,7 @@ load_gsettings (gchar               *schema_name,
         };
 
         if (url) {
+            passwordchecker_ldap_set_url (url, pwc->pwc_ldap);
             if (! g_settings_set_string (*settings, "url", url)) {
                 g_warning ("Failed to write the url retrieved from webinfo to the GSettings\n");
             }
@@ -563,6 +550,7 @@ load_gsettings (gchar               *schema_name,
         passwordchecker_get_base_dn (pwc->pwc_ldap, &base_dn);
 
         if (base_dn) {
+            passwordchecker_ldap_set_base_dn (base_dn, pwc->pwc_ldap);
             if (! g_settings_set_string (*settings, "base-dn", base_dn)) {
                 g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
             }
@@ -574,6 +562,8 @@ load_gsettings (gchar               *schema_name,
         }
     }
 
+    *handler_id = g_signal_connect (*settings, "changed", G_CALLBACK (settings_changed), pwc->pwc_ldap);
+
     g_free (url);
     g_free (base_dn);
 
@@ -584,7 +574,6 @@ static gint
 activate (PasswordChecker *pwc)
 {
     if (!load_gsettings ("org.altlinux.passwordchecker", &pwc->settings, &pwc->handler_id)) {
-        g_print ("here\n");
         return EXIT_FAILURE;
     }
 
