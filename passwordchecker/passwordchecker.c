@@ -33,8 +33,8 @@ typedef struct _Notification {
 } Notification;
 
 PasswordChecker *pwc = NULL;
-guint CURRENT_NOTIFICATION_ID = 0;
-
+guint CURRENT_WARNING_NOTIFICATION_ID = 0;
+guint CURRENT_FAIL_NOTIFICATION_ID = 0;
 
 static void
 cleanup (PasswordChecker *pwc)
@@ -197,11 +197,11 @@ send_warning (gpointer user_data)
 
     notification = g_new (Notification, 1);
 
-    if (CURRENT_NOTIFICATION_ID != 0) {
+    if (CURRENT_WARNING_NOTIFICATION_ID != 0) {
         GVariant *params = NULL;
         GVariant *reply = NULL;
 
-        params = g_variant_new ("(u)", CURRENT_NOTIFICATION_ID);
+        params = g_variant_new ("(u)", CURRENT_WARNING_NOTIFICATION_ID);
 
         reply = g_dbus_connection_call_sync (conn,
                                              "org.freedesktop.Notifications",
@@ -215,7 +215,7 @@ send_warning (gpointer user_data)
                                              NULL,
                                              &error);
 
-        CURRENT_NOTIFICATION_ID = 0;
+        CURRENT_WARNING_NOTIFICATION_ID = 0;
 
         if (error) {
             g_printerr ("Error closing notification: %s\n", error->message);
@@ -287,10 +287,122 @@ send_warning (gpointer user_data)
     }
 
     g_variant_get (reply, "(u)", &(notification->notification_id));
-    CURRENT_NOTIFICATION_ID = notification->notification_id;
+    CURRENT_WARNING_NOTIFICATION_ID = notification->notification_id;
 
     g_variant_unref (reply);
     g_free (mess);
+    g_bus_unown_name (pwc->owner_id);
+    g_object_unref (conn);
+
+    return TRUE;
+}
+
+static gboolean
+send_fail_notification (const gchar       *title,
+                        const gchar       *body)
+{
+    GVariant *parametrs = NULL;
+    GVariant *reply = NULL;
+    GDBusConnection *conn = NULL;
+    GError *error = NULL;
+    Notification *notification = NULL;
+    GVariantBuilder actions_builder;
+
+    if (!create_connection (pwc, &conn)) {
+        return FALSE;
+    }
+
+    notification = g_new (Notification, 1);
+
+    if (CURRENT_FAIL_NOTIFICATION_ID != 0) {
+        GVariant *params = NULL;
+        GVariant *reply = NULL;
+
+        params = g_variant_new ("(u)", CURRENT_FAIL_NOTIFICATION_ID);
+
+        reply = g_dbus_connection_call_sync (conn,
+                                             "org.freedesktop.Notifications",
+                                             "/org/freedesktop/Notifications",
+                                             "org.freedesktop.Notifications",
+                                             "CloseNotification",
+                                             params,
+                                             NULL,
+                                             G_DBUS_CALL_FLAGS_NONE,
+                                             -1,
+                                             NULL,
+                                             &error);
+
+        CURRENT_FAIL_NOTIFICATION_ID = 0;
+
+        if (error) {
+            g_printerr ("Error closing notification: %s\n", error->message);
+            g_error_free (error);
+            error = NULL;
+        }
+        if (reply != NULL) {
+            g_variant_unref (reply);
+        }
+    }
+
+    g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
+    g_variant_builder_add (&actions_builder, "s", "change-settings");
+    g_variant_builder_add (&actions_builder, "s", _("Change the application settings"));
+
+    notification->signal_invoked_action_id = g_dbus_connection_signal_subscribe (conn,
+                                                                                 "org.freedesktop.Notifications",
+                                                                                 "org.freedesktop.Notifications",
+                                                                                 "ActionInvoked",
+                                                                                 "/org/freedesktop/Notifications",
+                                                                                 NULL,
+                                                                                 G_DBUS_SIGNAL_FLAGS_NONE,
+                                                                                 on_action_invoked,
+                                                                                 NULL,
+                                                                                 NULL);
+
+    notification->signal_notification_closed_id = g_dbus_connection_signal_subscribe (conn,
+                                                                                      "org.freedesktop.Notifications",
+                                                                                      "org.freedesktop.Notifications",
+                                                                                      "NotificationClosed",
+                                                                                      "/org/freedesktop/Notifications",
+                                                                                      NULL,
+                                                                                      G_DBUS_SIGNAL_FLAGS_NONE,
+                                                                                      on_notification_close,
+                                                                                      notification,
+                                                                                      NULL);
+
+    parametrs = g_variant_new ("(susssasa{sv}i)",
+                               "passwordchecker",
+                               0u,
+                               "",
+                               title,
+                               body,
+                               &actions_builder,
+                               NULL,
+                               -1,
+                               NULL);
+
+    reply = g_dbus_connection_call_sync (conn,
+                                         "org.freedesktop.Notifications",
+                                         "/org/freedesktop/Notifications",
+                                         "org.freedesktop.Notifications",
+                                         "Notify",
+                                         parametrs,
+                                         NULL,
+                                         G_DBUS_CALL_FLAGS_NONE,
+                                         -1,
+                                         NULL,
+                                         &error);
+
+    if (reply == NULL) {
+        g_printerr("Error sending notification: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    g_variant_get (reply, "(u)", &(notification->notification_id));
+    CURRENT_FAIL_NOTIFICATION_ID = notification->notification_id;
+
+    g_variant_unref (reply);
     g_bus_unown_name (pwc->owner_id);
     g_object_unref (conn);
 
@@ -433,6 +545,11 @@ load_gsettings (gchar               *schema_name,
             if (! g_settings_set_string (*settings, "url", url)) {
                 g_warning ("Failed to write the url retrieved from webinfo to the GSettings\n");
             }
+        } else {
+            gboolean send_fail = send_fail_notification (_("Automatic LDAP url calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"));
+            if (!send_fail) {
+                g_printerr ("Failed to send notification\n");
+            }
         }
     }
 
@@ -455,8 +572,10 @@ load_gsettings (gchar               *schema_name,
 static gint
 activate (PasswordChecker *pwc)
 {
-    if (!load_gsettings ("org.altlinux.passwordchecker", &pwc->settings, &pwc->handler_id))
+    if (!load_gsettings ("org.altlinux.passwordchecker", &pwc->settings, &pwc->handler_id)) {
+        g_print ("here\n");
         return EXIT_FAILURE;
+    }
 
     check_password (pwc->pwc_ldap);
     g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password, pwc->pwc_ldap);
