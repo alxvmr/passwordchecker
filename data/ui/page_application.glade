@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.95.0 -->
+<!-- Created with Cambalache 0.94.1 -->
 <interface>
   <!-- interface-name page_application.glade -->
   <requires lib="gtk" version="4.0"/>
@@ -11,142 +11,188 @@
     <property name="orientation">vertical</property>
     <property name="spacing">7</property>
     <child>
-      <object class="GtkGrid">
-        <property name="column-homogeneous">True</property>
-        <property name="column-spacing">10</property>
-        <property name="row-spacing">10</property>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="valign">start</property>
         <property name="vexpand">True</property>
         <property name="vexpand-set">True</property>
         <child>
-          <object class="GtkLabel" id="page2-label1">
-            <property name="halign">start</property>
-            <layout>
-              <property name="column">0</property>
-              <property name="row">0</property>
-            </layout>
-          </object>
-        </child>
-        <child>
-          <object class="GtkLabel" id="page2-label2">
-            <property name="halign">start</property>
-            <layout>
-              <property name="column">0</property>
-              <property name="column-span">1</property>
-              <property name="row">1</property>
-              <property name="row-span">1</property>
-            </layout>
-          </object>
-        </child>
-        <child>
-          <object class="GtkBox">
-            <property name="spacing">5</property>
+          <object class="GtkGrid">
+            <property name="column-homogeneous">True</property>
+            <property name="column-spacing">10</property>
+            <property name="row-spacing">10</property>
+            <property name="vexpand">True</property>
+            <property name="vexpand-set">True</property>
+            <child>
+              <object class="GtkLabel" id="page2-label1">
+                <property name="halign">start</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="row">0</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="page2-label2">
+                <property name="halign">start</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="column-span">1</property>
+                  <property name="row">1</property>
+                  <property name="row-span">1</property>
+                </layout>
+              </object>
+            </child>
             <child>
               <object class="GtkBox">
-                <property name="width-request">20</property>
+                <property name="spacing">5</property>
                 <child>
-                  <object class="GtkImage" id="page2-error1">
-                    <property name="visible">False</property>
+                  <object class="GtkBox">
+                    <property name="width-request">20</property>
+                    <child>
+                      <object class="GtkImage" id="page2-error1">
+                        <property name="visible">False</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
+                <child>
+                  <object class="GtkEntry" id="page2-entry1-days">
+                    <property name="hexpand">True</property>
+                    <property name="hexpand-set">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">days</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="page2-entry1-hours">
+                    <property name="hexpand">True</property>
+                    <property name="hexpand-set">True</property>
+                    <property name="sensitive">False</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">hours</property>
+                    <property name="sensitive">False</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="page2-entry1-min">
+                    <property name="hexpand">True</property>
+                    <property name="hexpand-set">True</property>
+                    <property name="sensitive">False</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">min</property>
+                    <property name="sensitive">False</property>
+                  </object>
+                </child>
+                <layout>
+                  <property name="column">1</property>
+                  <property name="column-span">1</property>
+                  <property name="row">0</property>
+                  <property name="row-span">1</property>
+                </layout>
               </object>
             </child>
             <child>
-              <object class="GtkEntry" id="page2-entry1-days">
-                <property name="hexpand">True</property>
-                <property name="hexpand-set">True</property>
+              <object class="GtkBox">
+                <property name="spacing">5</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="width-request">20</property>
+                    <child>
+                      <object class="GtkImage" id="page2-error2">
+                        <property name="visible">False</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="page2-entry2-days">
+                    <property name="hexpand">True</property>
+                    <property name="hexpand-set">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">days</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="page2-entry2-hours">
+                    <property name="hexpand">True</property>
+                    <property name="hexpand-set">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">hours</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="page2-entry2-min">
+                    <property name="hexpand">True</property>
+                    <property name="hexpand-set">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">min</property>
+                  </object>
+                </child>
+                <layout>
+                  <property name="column">1</property>
+                  <property name="column-span">1</property>
+                  <property name="row">1</property>
+                  <property name="row-span">1</property>
+                </layout>
               </object>
             </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="label" translatable="yes">days</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkEntry" id="page2-entry1-hours">
-                <property name="sensitive">False</property>
-                <property name="hexpand">True</property>
-                <property name="hexpand-set">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="label" translatable="yes">hours</property>
-                <property name="sensitive">False</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkEntry" id="page2-entry1-min">
-                <property name="sensitive">False</property>
-                <property name="hexpand">True</property>
-                <property name="hexpand-set">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="label" translatable="yes">min</property>
-                <property name="sensitive">False</property>
-              </object>
-            </child>
-            <layout>
-              <property name="column">1</property>
-              <property name="column-span">1</property>
-              <property name="row">0</property>
-              <property name="row-span">1</property>
-            </layout>
           </object>
         </child>
         <child>
-          <object class="GtkBox">
-            <property name="spacing">5</property>
-            <child>
-              <object class="GtkBox">
-                <property name="width-request">20</property>
-                <child>
-                  <object class="GtkImage" id="page2-error2">
-                    <property name="visible">False</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkEntry" id="page2-entry2-days">
-                <property name="hexpand">True</property>
-                <property name="hexpand-set">True</property>
-              </object>
-            </child>
+          <object class="GtkSeparator">
+            <property name="margin-bottom">10</property>
+            <property name="margin-top">20</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkGrid">
+            <property name="column-homogeneous">True</property>
             <child>
               <object class="GtkLabel">
-                <property name="label" translatable="yes">days</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkEntry" id="page2-entry2-hours">
+                <property name="halign">start</property>
                 <property name="hexpand">True</property>
                 <property name="hexpand-set">True</property>
+                <property name="label" translatable="yes">Enable notifications at system startup</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="column-span">1</property>
+                  <property name="row">0</property>
+                  <property name="row-span">1</property>
+                </layout>
               </object>
             </child>
             <child>
-              <object class="GtkLabel">
-                <property name="label" translatable="yes">hours</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkEntry" id="page2-entry2-min">
+              <object class="GtkSwitch" id="page1-switcher-startup">
+                <property name="halign">end</property>
                 <property name="hexpand">True</property>
                 <property name="hexpand-set">True</property>
+                <layout>
+                  <property name="column">1</property>
+                  <property name="column-span">1</property>
+                  <property name="row">0</property>
+                  <property name="row-span">1</property>
+                </layout>
               </object>
             </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="label" translatable="yes">min</property>
-              </object>
-            </child>
-            <layout>
-              <property name="column">1</property>
-              <property name="column-span">1</property>
-              <property name="row">1</property>
-              <property name="row-span">1</property>
-            </layout>
           </object>
         </child>
       </object>
