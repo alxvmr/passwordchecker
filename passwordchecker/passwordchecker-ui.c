@@ -45,6 +45,8 @@ typedef struct _PasswordcheckerUI {
 #endif
 
     GtkWidget *stack;
+
+    guint owner_id;
 } PasswordCheckerUI;
 
 enum {
@@ -115,6 +117,91 @@ convert_mins (GValue   *value,
 
     g_value_set_string (value, str);
     g_free (str);
+
+    return TRUE;
+}
+
+static gboolean
+create_connection (PasswordCheckerUI  *pwd_ui,
+                   GDBusConnection   **conn)
+{
+    GError *error = NULL;
+
+    *conn = g_bus_get_sync (G_BUS_TYPE_SESSION,
+                            NULL,
+                            &error);
+    if (error) {
+        g_printerr ("Error connecting to D-Bus: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    pwd_ui->owner_id = g_bus_own_name_on_connection (*conn,
+                                                      pwd_ui->id,
+                                                      G_BUS_NAME_OWNER_FLAGS_NONE,
+                                                      NULL,
+                                                      NULL,
+                                                      NULL,
+                                                      NULL);
+
+    if (pwd_ui->owner_id == 0) {
+        g_printerr ("Failed to register a name on DBus: %s\n", pwd_ui->id);
+        g_object_unref (conn);
+        *conn = NULL;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+check_enable_service (PasswordCheckerUI *pwd_ui,
+                      gboolean          *result)
+{
+    GVariant *parametrs = NULL;
+    GVariant *reply = NULL;
+    GDBusConnection *conn = NULL;
+    GError *error = NULL;
+    gchar *state = NULL;
+
+    if (!create_connection (pwd_ui, &conn)) {
+        return FALSE;
+    }
+
+    parametrs = g_variant_new ("(s)",
+                               "passwordchecker-user.service");
+
+    reply = g_dbus_connection_call_sync (conn,
+                                         "org.freedesktop.systemd1",
+                                         "/org/freedesktop/systemd1",
+                                         "org.freedesktop.systemd1.Manager",
+                                         "GetUnitFileState",
+                                         parametrs,
+                                         NULL,
+                                         G_DBUS_CALL_FLAGS_NONE,
+                                         -1,
+                                         NULL,
+                                         &error);
+
+    if (reply == NULL) {
+        g_printerr ("Error getting service states: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    g_variant_get (reply, "(s)", &state);
+    if (g_strcmp0 (state, "disabled") == 0) {
+        *result = FALSE;
+    } else {
+        if (g_strcmp0 (state, "enabled") == 0) {
+            *result = TRUE;
+        }
+    }
+
+    g_free (state);
+    g_variant_unref (reply);
+    g_bus_unown_name (pwd_ui->owner_id);
+    g_object_unref (conn);
 
     return TRUE;
 }
@@ -312,6 +399,10 @@ activate (GtkApplication* app,
         gtk_window_present (GTK_WINDOW (pwd_ui->window));
         return;
     }
+
+    gboolean is_enable_unit;
+    // TODO: if check_enable_service return FALSE???
+    check_enable_service (pwd_ui, &is_enable_unit);
 #ifndef USE_ADWAITA
     pwd_ui->notification = NULL;
 #endif
@@ -356,6 +447,9 @@ activate (GtkApplication* app,
     pwd_ui->warning_frequencies_hours = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-hours"));
     pwd_ui->warning_frequencies_min = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-min"));
     pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
+
+    GtkWidget *switch_row = GTK_WIDGET (gtk_builder_get_object (builder, "page2-switcher-startup"));
+    adw_switch_row_set_active (ADW_SWITCH_ROW (switch_row), is_enable_unit);
 
     GtkBox *app_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-application"));
     gtk_widget_set_name (GTK_WIDGET (app_content), "notebook-page-application");
