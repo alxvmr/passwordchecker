@@ -40,6 +40,7 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *button_app;
 
     GtkWidget *toast_overlay;
+    GtkWidget *switch_row;
 #ifndef USE_ADWAITA
     Notification_ui *notification;
 #endif
@@ -122,8 +123,7 @@ convert_mins (GValue   *value,
 }
 
 static gboolean
-create_connection (PasswordCheckerUI  *pwd_ui,
-                   GDBusConnection   **conn)
+create_connection (GDBusConnection   **conn)
 {
     GError *error = NULL;
 
@@ -133,21 +133,6 @@ create_connection (PasswordCheckerUI  *pwd_ui,
     if (error) {
         g_printerr ("Error connecting to D-Bus: %s\n", error->message);
         g_error_free (error);
-        return FALSE;
-    }
-
-    pwd_ui->owner_id = g_bus_own_name_on_connection (*conn,
-                                                      pwd_ui->id,
-                                                      G_BUS_NAME_OWNER_FLAGS_NONE,
-                                                      NULL,
-                                                      NULL,
-                                                      NULL,
-                                                      NULL);
-
-    if (pwd_ui->owner_id == 0) {
-        g_printerr ("Failed to register a name on DBus: %s\n", pwd_ui->id);
-        g_object_unref (conn);
-        *conn = NULL;
         return FALSE;
     }
 
@@ -164,7 +149,7 @@ check_enable_service (PasswordCheckerUI *pwd_ui,
     GError *error = NULL;
     gchar *state = NULL;
 
-    if (!create_connection (pwd_ui, &conn)) {
+    if (!create_connection (&conn)) {
         return FALSE;
     }
 
@@ -200,8 +185,77 @@ check_enable_service (PasswordCheckerUI *pwd_ui,
 
     g_free (state);
     g_variant_unref (reply);
-    g_bus_unown_name (pwd_ui->owner_id);
     g_object_unref (conn);
+
+    return TRUE;
+}
+
+static gboolean
+disable_service (PasswordCheckerUI *pwd_ui)
+{
+    GVariant *reply = NULL;
+    GDBusConnection *conn = NULL;
+    GError *error = NULL;
+    gchar *state = NULL;
+
+    if (!create_connection (&conn)) {
+        return FALSE;
+    }
+
+    reply = g_dbus_connection_call_sync (conn,
+                                        "org.freedesktop.systemd1",
+                                        "/org/freedesktop/systemd1",
+                                        "org.freedesktop.systemd1.Manager",
+                                        "DisableUnitFiles",
+                                        g_variant_new ("(^asb)",
+                                                    (gchar *[]) {"passwordchecker-user.service", NULL},
+                                                    FALSE),
+                                                    (GVariantType *) "(a(sss))",
+                                                    G_DBUS_CALL_FLAGS_NONE,
+                                                    -1,
+                                                    NULL,
+                                                    &error);
+
+    if (reply == NULL) {
+        g_printerr ("Service disable error: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+enable_service (PasswordCheckerUI *pwd_ui)
+{
+    GVariant *reply = NULL;
+    GDBusConnection *conn = NULL;
+    GError *error = NULL;
+    gchar *state = NULL;
+
+    if (!create_connection (&conn)) {
+        return FALSE;
+    }
+
+    reply = g_dbus_connection_call_sync (conn,
+                                        "org.freedesktop.systemd1",
+                                        "/org/freedesktop/systemd1",
+                                        "org.freedesktop.systemd1.Manager",
+                                        "EnableUnitFiles",
+                                        g_variant_new ("(^asbb)",
+                                                       (gchar *[]) {"passwordchecker-user.service", NULL},
+                                                       FALSE, TRUE),
+                                                       (GVariantType *) "(ba(sss))",
+                                                       G_DBUS_CALL_FLAGS_NONE,
+                                                       -1,
+                                                       NULL,
+                                                       &error);
+
+    if (reply == NULL) {
+        g_printerr ("Service enable error: %s\n", error->message);
+        g_error_free (error);
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -254,6 +308,22 @@ send_notification (const gchar       *body,
     notification->timer_id = g_timeout_add_seconds (3, (GSourceFunc)hide_notification, &pwd_ui->notification);
 #endif
     return;
+}
+
+static gboolean
+cb_switch_row_activate (PasswordCheckerUI *pwd_ui)
+{
+    gboolean active;
+#ifdef USE_ADWAITA
+    active = adw_switch_row_get_active (ADW_SWITCH_ROW (pwd_ui->switch_row));
+#endif
+    if (active) {
+        return enable_service (pwd_ui);
+        // dbus StartUnitFile ?
+    } else {
+        return disable_service (pwd_ui);
+        // dbus DisableUnitFiles (false, true)
+    }
 }
 
 static void
@@ -370,7 +440,7 @@ cb_button_app (GtkWidget *button,
         g_free (error_mess);
     }
 
-    if (gint64_start_warning_time != -1 && gint64_warning_freq != -1) {
+    if (gint64_start_warning_time != -1 && gint64_warning_freq != -1 && cb_switch_row_activate (pwd_ui)) {
         if (g_settings_set_int64 (pwd_ui->settings, "start-warning-time", gint64_start_warning_time) && 
             g_settings_set_int64 (pwd_ui->settings, "warning-frequencies", gint64_warning_freq))
         {
@@ -448,8 +518,8 @@ activate (GtkApplication* app,
     pwd_ui->warning_frequencies_min = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-min"));
     pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
 
-    GtkWidget *switch_row = GTK_WIDGET (gtk_builder_get_object (builder, "page2-switcher-startup"));
-    adw_switch_row_set_active (ADW_SWITCH_ROW (switch_row), is_enable_unit);
+    pwd_ui->switch_row = GTK_WIDGET (gtk_builder_get_object (builder, "page2-switcher-startup"));
+    adw_switch_row_set_active (ADW_SWITCH_ROW (pwd_ui->switch_row), is_enable_unit);
 
     GtkBox *app_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-application"));
     gtk_widget_set_name (GTK_WIDGET (app_content), "notebook-page-application");
