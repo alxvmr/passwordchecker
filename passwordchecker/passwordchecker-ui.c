@@ -10,6 +10,13 @@
 
 #define _(STRING) gettext(STRING)
 
+#ifndef USE_ADWAITA
+typedef struct _Notification_ui {
+        GtkWidget *widget;
+        guint timer_id;
+    } Notification_ui;
+#endif
+
 typedef struct _PasswordcheckerUI {
 #ifdef USE_ADWAITA
     AdwApplication *app;
@@ -32,12 +39,13 @@ typedef struct _PasswordcheckerUI {
     GtkWidget *button_conn;
     GtkWidget *button_app;
 
+    GtkWidget *toast_overlay;
+#ifndef USE_ADWAITA
+    Notification_ui *notification;
+#endif
+
     GtkWidget *stack;
-
-    guint owner_id;
 } PasswordCheckerUI;
-
-static guint NOTIFICATION_ID = 0;
 
 enum {
     TO_MINS,
@@ -111,118 +119,53 @@ convert_mins (GValue   *value,
     return TRUE;
 }
 
+#ifndef USE_ADWAITA
 static gboolean
-create_connection (PasswordCheckerUI  *pwd_ui,
-                   GDBusConnection   **conn)
+hide_notification (Notification_ui **notification_ptr)
 {
-    GError *error = NULL;
+    if (notification_ptr && *notification_ptr) {
+        Notification_ui *notification = *notification_ptr;
 
-    *conn = g_bus_get_sync (G_BUS_TYPE_SESSION,
-                            NULL,
-                            &error);
-    if (error) {
-        g_printerr ("Error connecting to D-Bus: %s\n", error->message);
-        g_error_free (error);
-        return FALSE;
-    }
+        if (notification->widget) {
+            gtk_widget_unparent (notification->widget);
+            notification->widget = NULL;
+        }
 
-    pwd_ui->owner_id = g_bus_own_name_on_connection (*conn,
-                                                      pwd_ui->id,
-                                                      G_BUS_NAME_OWNER_FLAGS_NONE,
-                                                      NULL,
-                                                      NULL,
-                                                      NULL,
-                                                      NULL);
-
-    if (pwd_ui->owner_id == 0) {
-        g_printerr ("Failed to register a name on DBus: %s\n", pwd_ui->id);
-        g_object_unref (conn);
-        *conn = NULL;
-        return FALSE;
+        g_source_remove (notification->timer_id);
+        g_free (notification);
+        *notification_ptr = NULL;
     }
 
     return TRUE;
 }
+#endif
 
 static void
-send_notification (const gchar       *title,
-                   const gchar       *body,
+send_notification (const gchar       *body,
+                   const gchar       *status,
                    PasswordCheckerUI *pwd_ui)
 {
-    GVariant *parametrs = NULL;
-    GVariant *reply = NULL;
-    GDBusConnection *conn = NULL;
-    GError *error = NULL;
-
-    if (!create_connection (pwd_ui, &conn)) {
-        return;
+#ifdef USE_ADWAITA
+    adw_toast_overlay_dismiss_all (ADW_TOAST_OVERLAY (pwd_ui->toast_overlay));
+    AdwToast *toast = adw_toast_new (body);
+    adw_toast_set_timeout (toast, 3);
+    adw_toast_overlay_add_toast (ADW_TOAST_OVERLAY (pwd_ui->toast_overlay), toast);
+#else
+    if (pwd_ui->notification) {
+        hide_notification (&pwd_ui->notification);
     }
 
-    if (NOTIFICATION_ID != 0) {
-        GVariant *reply = NULL;
-        GVariant *params = NULL;
+    Notification_ui *notification = g_new (Notification_ui, 1);
+    pwd_ui->notification = notification;
 
-        params = g_variant_new ("(u)", NOTIFICATION_ID);
+    notification->widget = GTK_WIDGET (gtk_label_new (body));
+    gtk_widget_set_margin_bottom (notification->widget, 50);
+    gtk_widget_set_valign(notification->widget, GTK_ALIGN_END);
+    gtk_widget_set_vexpand(notification->widget, TRUE);
 
-        reply = g_dbus_connection_call_sync (conn,
-                                             "org.freedesktop.Notifications",
-                                             "/org/freedesktop/Notifications",
-                                             "org.freedesktop.Notifications",
-                                             "CloseNotification",
-                                             params,
-                                             NULL,
-                                             G_DBUS_CALL_FLAGS_NONE,
-                                             -1,
-                                             NULL,
-                                             &error);
-        if (error) {
-            g_printerr ("Error closing notification: %s\n", error->message);
-            g_error_free (error);
-            error = NULL;
-        }
-
-        if (reply != NULL) {
-            g_variant_unref (reply);
-        }
-
-        NOTIFICATION_ID = 0;
-    }
-
-    parametrs = g_variant_new ("(susssasa{sv}i)",
-                               "PasswordCheckerSettings",
-                               pwd_ui->id,
-                               "",
-                               title,
-                               body,
-                               NULL,
-                               NULL,
-                               -1,
-                               NULL);
-
-    reply = g_dbus_connection_call_sync (conn,
-                                         "org.freedesktop.Notifications",
-                                         "/org/freedesktop/Notifications",
-                                         "org.freedesktop.Notifications",
-                                         "Notify",
-                                         parametrs,
-                                         NULL,
-                                         G_DBUS_CALL_FLAGS_NONE,
-                                         -1,
-                                         NULL,
-                                         &error);
-
-    if (reply == NULL) {
-        g_printerr("Error sending notification: %s\n", error->message);
-        g_error_free (error);
-        return;
-    }
-
-    g_variant_get (reply, "(u)", &NOTIFICATION_ID);
-
-    g_variant_unref (reply);
-    g_bus_unown_name (pwd_ui->owner_id);
-    g_object_unref (conn);
-
+    gtk_overlay_add_overlay (GTK_OVERLAY (pwd_ui->toast_overlay), notification->widget);
+    notification->timer_id = g_timeout_add_seconds (3, (GSourceFunc)hide_notification, &pwd_ui->notification);
+#endif
     return;
 }
 
@@ -235,10 +178,15 @@ cb_button_conn (GtkWidget *button,
     const gchar *url_new = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->url));
     const gchar *base_dn_new = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->base_dn));
 
-    g_settings_set_string (pwd_ui->settings, "url", url_new);
-    g_settings_set_string (pwd_ui->settings, "base-dn", base_dn_new);
+    if (g_settings_set_string (pwd_ui->settings, "url", url_new) && 
+        g_settings_set_string (pwd_ui->settings, "base-dn", base_dn_new))
+    {
+        send_notification (_("Connection settings have been successfully changed"), "success", pwd_ui);
+        return;
+    }
 
-    send_notification (_("PasswordChecker: change settings"), _("Connection settings have been successfully changed"), pwd_ui);
+    send_notification (_("Unable to change connection settings"), "error", pwd_ui);
+    return;
 }
 
 static gboolean
@@ -336,11 +284,16 @@ cb_button_app (GtkWidget *button,
     }
 
     if (gint64_start_warning_time != -1 && gint64_warning_freq != -1) {
-        g_settings_set_int64 (pwd_ui->settings, "start-warning-time", gint64_start_warning_time);
-        g_settings_set_int64 (pwd_ui->settings, "warning-frequencies", gint64_warning_freq);
-
-        send_notification (_("PasswordChecker: change settings"), _("Application settings have been successfully changed"), pwd_ui);
+        if (g_settings_set_int64 (pwd_ui->settings, "start-warning-time", gint64_start_warning_time) && 
+            g_settings_set_int64 (pwd_ui->settings, "warning-frequencies", gint64_warning_freq))
+        {
+            send_notification (_("Application settings have been successfully changed"), "sucess", pwd_ui);
+            return;
+        }
     }
+
+    send_notification (_("Unable to change application settings"), "error", pwd_ui);
+    return;
 }
 
 static void
@@ -359,6 +312,9 @@ activate (GtkApplication* app,
         gtk_window_present (GTK_WINDOW (pwd_ui->window));
         return;
     }
+#ifndef USE_ADWAITA
+    pwd_ui->notification = NULL;
+#endif
 
     GError *error = NULL;
     GtkBuilder *builder = gtk_builder_new ();
@@ -381,6 +337,7 @@ activate (GtkApplication* app,
         return;
     }
 
+    pwd_ui->toast_overlay = GTK_WIDGET (gtk_builder_get_object (builder, "toast-overlay"));
     AdwToolbarView *switcher = ADW_TOOLBAR_VIEW (gtk_builder_get_object (builder, "toolbar-page"));
     // AdwViewStack *stack = ADW_VIEW_STACK (gtk_builder_get_object (builder, "stack"));
     pwd_ui->stack = GTK_WIDGET (gtk_builder_get_object (builder, "stack"));
@@ -422,7 +379,9 @@ activate (GtkApplication* app,
     adw_view_stack_page_set_title (con_page, _("Connection"));
 
     adw_toolbar_view_set_content (switcher, pwd_ui->stack);
-    adw_clamp_set_child (container, GTK_WIDGET (switcher));
+    adw_toast_overlay_set_child (ADW_TOAST_OVERLAY (pwd_ui->toast_overlay), GTK_WIDGET (switcher));
+
+    adw_clamp_set_child (container, pwd_ui->toast_overlay);
 
     adw_toolbar_view_set_content (toolbar, GTK_WIDGET (container));
 
@@ -433,6 +392,8 @@ activate (GtkApplication* app,
 #else
     pwd_ui->window = gtk_application_window_new (app);
     gtk_window_set_title (GTK_WINDOW (pwd_ui->window), "PasswordCheckerSettings");
+
+    pwd_ui->toast_overlay = gtk_overlay_new ();
     GtkWidget *main_container = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     pwd_ui->stack = gtk_notebook_new ();
 
@@ -503,7 +464,8 @@ activate (GtkApplication* app,
     gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), _("Apply connection settings"));
 
     gtk_box_append (GTK_BOX (main_container), pwd_ui->stack);
-    gtk_window_set_child (GTK_WINDOW (pwd_ui->window), main_container);
+    gtk_overlay_set_child (GTK_OVERLAY (pwd_ui->toast_overlay), main_container);
+    gtk_window_set_child (GTK_WINDOW (pwd_ui->window), pwd_ui->toast_overlay);
 #endif
 
     g_signal_connect (G_OBJECT (pwd_ui->button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
