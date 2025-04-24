@@ -160,11 +160,12 @@ on_notification_close (GDBusConnection *conn,
 }
 
 static gboolean
-create_connection (GDBusConnection **conn)
+create_connection (GDBusConnection **conn,
+                   gint TYPE_SESSION)
 {
     GError *error = NULL;
 
-    *conn = g_bus_get_sync (G_BUS_TYPE_SESSION,
+    *conn = g_bus_get_sync (TYPE_SESSION,
                             NULL,
                             &error);
     if (error) {
@@ -190,7 +191,7 @@ send_warning (gpointer user_data)
     gchar *expiry_time = (gchar *) user_data;
     mess = g_strdup_printf (_("Your password expires on %s"), expiry_time);
 
-    if (!create_connection (&conn)) {
+    if (!create_connection (&conn, G_BUS_TYPE_SESSION)) {
         g_free (mess);
         return FALSE;
     }
@@ -307,7 +308,7 @@ send_fail_notification (const gchar       *title,
     Notification *notification = NULL;
     GVariantBuilder actions_builder;
 
-    if (!create_connection (&conn)) {
+    if (!create_connection (&conn, G_BUS_TYPE_SESSION)) {
         return FALSE;
     }
 
@@ -371,6 +372,86 @@ send_fail_notification (const gchar       *title,
     g_variant_get (reply, "(u)", &(notification->notification_id));
 
     g_variant_unref (reply);
+    g_object_unref (conn);
+
+    return TRUE;
+}
+
+static gboolean
+check_active_winbind (gboolean *is_active)
+{
+    GDBusConnection *conn = NULL;
+    GVariant *parametrs = NULL;
+    GVariant *path_object = NULL;
+    GVariant *active_state_object = NULL;
+    GVariant *active_state_variant = NULL;
+    gchar *path = NULL;
+    const gchar *active_state = NULL;
+    GError *error = NULL;
+
+    if (!create_connection (&conn, G_BUS_TYPE_SYSTEM)) {
+        return FALSE;
+    }
+
+    parametrs = g_variant_new ("(s)", "winbind.service");
+
+    path_object = g_dbus_connection_call_sync (conn,
+                                               "org.freedesktop.systemd1",
+                                               "/org/freedesktop/systemd1",
+                                               "org.freedesktop.systemd1.Manager",
+                                               "GetUnit",
+                                               parametrs,
+                                               NULL,
+                                               G_DBUS_CALL_FLAGS_NONE,
+                                               -1,
+                                               NULL,
+                                               &error);
+
+    if (path_object == NULL) {
+        g_printerr ("Error getting path unit: %s\n", error->message);
+        g_error_free (error);
+        g_object_unref (conn);
+        return FALSE;
+    }
+
+    g_variant_get (path_object, "(o)", &path);
+    g_variant_unref (path_object);
+    
+    parametrs = g_variant_new ("(ss)",
+                               "org.freedesktop.systemd1.Unit",
+                               "ActiveState");
+    
+    active_state_object = g_dbus_connection_call_sync(conn,
+                                                      "org.freedesktop.systemd1",
+                                                      path,
+                                                      "org.freedesktop.DBus.Properties",
+                                                      "Get",
+                                                      parametrs,
+                                                      NULL,
+                                                      G_DBUS_CALL_FLAGS_NONE,
+                                                      -1,
+                                                      NULL,
+                                                      &error);
+
+    if (active_state_object == NULL) {
+        g_printerr ("Error getting active state: %s\n", error->message);
+        g_error_free (error);
+        g_object_unref (conn);
+        return FALSE;
+    }
+
+    g_variant_get (active_state_object, "(v)", &active_state_variant);
+    active_state = g_variant_get_string (active_state_variant, NULL);
+
+    if (g_strcmp0 (active_state, "active") == 0) {
+        *is_active = TRUE;
+    } else {
+        *is_active = FALSE;
+    }
+
+    g_variant_unref (active_state_variant);
+    g_variant_unref (active_state_object);
+    g_free (path);
     g_object_unref (conn);
 
     return TRUE;
@@ -571,6 +652,16 @@ main ()
 
     gint rc;
     GError *error = NULL;
+    gboolean winbind_is_active = FALSE;
+
+    if (!check_active_winbind (&winbind_is_active)) {
+        g_printerr ("Failed to determine the status of winbind.service\n");
+        return 0;
+    }
+    if (! winbind_is_active) {
+        g_printerr ("winbind.service is not started\n");
+        return 0;
+    }
 
     pwc = g_new (PasswordChecker, 1);
     pwc->app_id = "org.altlinux.passwordchecker";
