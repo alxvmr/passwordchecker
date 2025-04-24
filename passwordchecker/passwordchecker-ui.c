@@ -193,7 +193,8 @@ check_enable_service (PasswordCheckerUI *pwd_ui,
 static gboolean
 disable_service (PasswordCheckerUI *pwd_ui)
 {
-    GVariant *reply = NULL;
+    GVariant *disable_result = NULL;
+    GVariant *stop_result = NULL;
     GDBusConnection *conn = NULL;
     GError *error = NULL;
     gchar *state = NULL;
@@ -202,21 +203,40 @@ disable_service (PasswordCheckerUI *pwd_ui)
         return FALSE;
     }
 
-    reply = g_dbus_connection_call_sync (conn,
-                                        "org.freedesktop.systemd1",
-                                        "/org/freedesktop/systemd1",
-                                        "org.freedesktop.systemd1.Manager",
-                                        "DisableUnitFiles",
-                                        g_variant_new ("(^asb)",
-                                                    (gchar *[]) {"passwordchecker-user.service", NULL},
-                                                    FALSE),
-                                                    (GVariantType *) "(a(sss))",
-                                                    G_DBUS_CALL_FLAGS_NONE,
-                                                    -1,
-                                                    NULL,
-                                                    &error);
+    stop_result = g_dbus_connection_call_sync (conn,
+                                             "org.freedesktop.systemd1",
+                                             "/org/freedesktop/systemd1",
+                                             "org.freedesktop.systemd1.Manager",
+                                             "StopUnit",
+                                             g_variant_new ("(ss)", "passwordchecker-user.service", "replace"),
+                                             (GVariantType *) "(o)",
+                                             G_DBUS_CALL_FLAGS_NONE,
+                                             -1,
+                                             NULL,
+                                             &error);
 
-    if (reply == NULL) {
+    if (!stop_result)
+    {
+      g_printerr ("Error stopping passwordchecker-user.service: %s", error->message);
+      g_error_free (error);
+      return FALSE;
+    }
+
+    disable_result = g_dbus_connection_call_sync (conn,
+                                                  "org.freedesktop.systemd1",
+                                                  "/org/freedesktop/systemd1",
+                                                  "org.freedesktop.systemd1.Manager",
+                                                  "DisableUnitFiles",
+                                                  g_variant_new ("(^asb)",
+                                                              (gchar *[]) {"passwordchecker-user.service", NULL},
+                                                              FALSE),
+                                                              (GVariantType *) "(a(sss))",
+                                                              G_DBUS_CALL_FLAGS_NONE,
+                                                              -1,
+                                                              NULL,
+                                                              &error);
+
+    if (disable_result == NULL) {
         g_printerr ("Service disable error: %s\n", error->message);
         g_error_free (error);
         return FALSE;
@@ -228,7 +248,8 @@ disable_service (PasswordCheckerUI *pwd_ui)
 static gboolean
 enable_service (PasswordCheckerUI *pwd_ui)
 {
-    GVariant *reply = NULL;
+    GVariant *start_result = NULL;
+    GVariant *enable_result = NULL;
     GDBusConnection *conn = NULL;
     GError *error = NULL;
     gchar *state = NULL;
@@ -237,21 +258,42 @@ enable_service (PasswordCheckerUI *pwd_ui)
         return FALSE;
     }
 
-    reply = g_dbus_connection_call_sync (conn,
-                                        "org.freedesktop.systemd1",
-                                        "/org/freedesktop/systemd1",
-                                        "org.freedesktop.systemd1.Manager",
-                                        "EnableUnitFiles",
-                                        g_variant_new ("(^asbb)",
-                                                       (gchar *[]) {"passwordchecker-user.service", NULL},
-                                                       FALSE, TRUE),
-                                                       (GVariantType *) "(ba(sss))",
-                                                       G_DBUS_CALL_FLAGS_NONE,
-                                                       -1,
-                                                       NULL,
-                                                       &error);
+    start_result = g_dbus_connection_call_sync (conn,
+                                                "org.freedesktop.systemd1",
+                                                "/org/freedesktop/systemd1",
+                                                "org.freedesktop.systemd1.Manager",
+                                                "StartUnit",
+                                                g_variant_new ("(ss)",
+                                                               "passwordchecker-user.service",
+                                                               "replace"),
+                                                (GVariantType *) "(o)",
+                                                G_DBUS_CALL_FLAGS_NONE,
+                                                -1,
+                                                NULL,
+                                                &error);
 
-    if (reply == NULL) {
+  if (!start_result)
+    {
+      g_printerr ("Error starting passwordchecker-user.service %s", error->message);
+      g_error_free (error);
+      return FALSE;
+    }
+
+    enable_result = g_dbus_connection_call_sync (conn,
+                                                 "org.freedesktop.systemd1",
+                                                 "/org/freedesktop/systemd1",
+                                                 "org.freedesktop.systemd1.Manager",
+                                                 "EnableUnitFiles",
+                                                 g_variant_new ("(^asbb)",
+                                                                (gchar *[]) {"passwordchecker-user.service", NULL},
+                                                                FALSE, TRUE),
+                                                                (GVariantType *) "(ba(sss))",
+                                                                G_DBUS_CALL_FLAGS_NONE,
+                                                                -1,
+                                                                NULL,
+                                                                &error);
+
+    if (enable_result == NULL) {
         g_printerr ("Service enable error: %s\n", error->message);
         g_error_free (error);
         return FALSE;
@@ -316,6 +358,8 @@ cb_switch_row_activate (PasswordCheckerUI *pwd_ui)
     gboolean active;
 #ifdef USE_ADWAITA
     active = adw_switch_row_get_active (ADW_SWITCH_ROW (pwd_ui->switch_row));
+#else
+    active = gtk_switch_get_active (GTK_SWITCH (pwd_ui->switch_row));
 #endif
     if (active) {
         return enable_service (pwd_ui);
@@ -608,6 +652,9 @@ activate (GtkApplication* app,
     pwd_ui->url = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry1"));
     pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
     pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
+
+    pwd_ui->switch_row = GTK_WIDGET (gtk_builder_get_object (builder, "page1-switcher-startup"));
+    gtk_switch_set_active (GTK_SWITCH (pwd_ui->switch_row), is_enable_unit);
 
     /* page 2 */
     GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
