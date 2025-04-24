@@ -17,7 +17,6 @@ static gint TIME_CONV_FREQ = 60;
 typedef struct _PasswordChecker {
     GMainLoop *loop;
     const gchar *app_id;
-    guint owner_id;
 
     PasswordcheckerLdap *pwc_ldap;
     GSettings *settings;
@@ -161,8 +160,7 @@ on_notification_close (GDBusConnection *conn,
 }
 
 static gboolean
-create_connection (PasswordChecker  *pwc,
-                   GDBusConnection **conn)
+create_connection (GDBusConnection **conn)
 {
     GError *error = NULL;
 
@@ -172,22 +170,6 @@ create_connection (PasswordChecker  *pwc,
     if (error) {
         g_printerr ("Error connecting to D-Bus: %s\n", error->message);
         g_error_free (error);
-        return FALSE;
-    }
-
-    pwc->owner_id = g_bus_own_name_on_connection (*conn,
-                                                   pwc->app_id,
-                                                   G_BUS_NAME_OWNER_FLAGS_NONE,
-                                                   NULL,
-                                                   NULL,
-                                                   NULL,
-                                                   NULL);
-
-    if (pwc->owner_id == 0) {
-        g_printerr ("Failed to register a name on DBus: %s\n", pwc->app_id);
-        g_object_unref (*conn);
-        *conn = FALSE;
-        *conn = NULL;
         return FALSE;
     }
 
@@ -208,7 +190,7 @@ send_warning (gpointer user_data)
     gchar *expiry_time = (gchar *) user_data;
     mess = g_strdup_printf (_("Your password expires on %s"), expiry_time);
 
-    if (!create_connection (pwc, &conn)) {
+    if (!create_connection (&conn)) {
         g_free (mess);
         return FALSE;
     }
@@ -309,7 +291,6 @@ send_warning (gpointer user_data)
 
     g_variant_unref (reply);
     g_free (mess);
-    g_bus_unown_name (pwc->owner_id);
     g_object_unref (conn);
 
     return TRUE;
@@ -326,7 +307,7 @@ send_fail_notification (const gchar       *title,
     Notification *notification = NULL;
     GVariantBuilder actions_builder;
 
-    if (!create_connection (pwc, &conn)) {
+    if (!create_connection (&conn)) {
         return FALSE;
     }
 
@@ -390,7 +371,6 @@ send_fail_notification (const gchar       *title,
     g_variant_get (reply, "(u)", &(notification->notification_id));
 
     g_variant_unref (reply);
-    g_bus_unown_name (pwc->owner_id);
     g_object_unref (conn);
 
     return TRUE;
