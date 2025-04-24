@@ -474,7 +474,7 @@ check_password (void *data)
         TODO: add notification
         */
         g_printerr ("Failed to get date from LDAP server\n");
-        return TRUE;
+        return FALSE;
     }
 
     current_time = g_date_time_new_now_local();
@@ -506,6 +506,19 @@ check_password (void *data)
 
     g_date_time_unref (dt);
     g_date_time_unref (current_time);
+
+    return TRUE;
+}
+
+static gboolean
+check_password_with_notification (void *data)
+{
+    PasswordcheckerLdap *pwc_ldap = (PasswordcheckerLdap *) data;
+    g_print ("here\n");
+
+    if (!check_password (pwc_ldap)) {
+        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
+    }
 
     return TRUE;
 }
@@ -552,7 +565,9 @@ settings_changed (GSettings *settings,
         }
     }
 
-    check_password (pwc_ldap);
+    if (!check_password (pwc_ldap)) {
+        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
+    }
 
     g_variant_unref (value_gv);
     return;
@@ -640,8 +655,10 @@ activate (PasswordChecker *pwc)
         return EXIT_FAILURE;
     }
 
-    check_password (pwc->pwc_ldap);
-    g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password, pwc->pwc_ldap);
+    if (!check_password (pwc->pwc_ldap)) {
+        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
+    }
+    g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password_with_notification, pwc->pwc_ldap);
 }
 
 int
