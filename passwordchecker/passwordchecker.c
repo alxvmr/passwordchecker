@@ -565,6 +565,7 @@ load_gsettings (gchar               *schema_name,
 {
     gchar *url = NULL;
     gchar *base_dn = NULL;
+    gboolean change_by_user;
 
     *settings = g_settings_new (schema_name);
     if (!*settings)
@@ -574,10 +575,11 @@ load_gsettings (gchar               *schema_name,
     base_dn = g_settings_get_string (*settings, "base-dn");
     START_WARNING_TIME = g_settings_get_int64 (*settings, "start-warning-time") * TIME_CONV_START;
     WARNING_FREQ = g_settings_get_int64 (*settings, "warning-frequencies") * TIME_CONV_FREQ;
+    change_by_user = g_settings_get_boolean (*settings, "change-conn-settings-by-user");
 
     pwc->pwc_ldap = passwordchecker_ldap_new (url, base_dn);
 
-    if (g_strcmp0 (url, "") == 0) {
+    if (g_strcmp0 (url, "") == 0 || !change_by_user) {
         g_free (url);
         url = NULL;
 
@@ -604,7 +606,7 @@ load_gsettings (gchar               *schema_name,
         }
     }
 
-    if (g_strcmp0 (base_dn, "") == 0) {
+    if (g_strcmp0 (base_dn, "") == 0 || !change_by_user) {
         g_free (base_dn);
         base_dn = NULL;
 

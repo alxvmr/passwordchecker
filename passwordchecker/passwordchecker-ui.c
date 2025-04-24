@@ -383,6 +383,11 @@ cb_button_conn (GtkWidget *button,
         g_settings_set_string (pwd_ui->settings, "base-dn", base_dn_new))
     {
         send_notification (_("Connection settings have been successfully changed"), "success", pwd_ui);
+
+        if (!g_settings_set_boolean (pwd_ui->settings, "change-conn-settings-by-user", TRUE)) {
+            g_warning ("Could not change the change-conn-settings-by-user key\n");
+        }
+
         return;
     }
 
