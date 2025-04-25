@@ -12,7 +12,7 @@ Url:     https://github.com/alxvmr/passwordchecker
 
 BuildRequires(pre): rpm-macros-cmake
 BuildRequires: cmake gcc gettext-tools
-BuildRequires: pkgconfig(gio-2.0) pkgconfig(gtk4)
+BuildRequires: pkgconfig(gio-2.0) pkgconfig(gtk4) pkgconfig(libadwaita-1) pkgconfig(wbclient)
 BuildRequires: libldap-devel libsasl2-devel libwbclient-devel
 Requires: samba-winbind
 
