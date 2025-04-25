@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.12.0)
 project(passwordchecker VERSION 0.1.0 LANGUAGES C)
 
+include (GNUInstallDirs)
+
 option (USE_ADWAITA "Use Adwaita theme" ON)
 if (USE_ADWAITA)
     add_definitions(-DUSE_ADWAITA)
@@ -79,22 +81,22 @@ if (USE_ADWAITA)
 endif ()
 
 install (TARGETS ${UI_APP_NAME}
-         DESTINATION /usr/bin)
+         DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 install (FILES ${UI_FILES}
-         DESTINATION /usr/share/${UI_APP_NAME}/ui)
+         DESTINATION ${CMAKE_INSTALL_DATADIR}/${UI_APP_NAME}/ui)
 
 install (FILES ${ICON_FILES}
-         DESTINATION /usr/share/${UI_APP_NAME}/icons)
+         DESTINATION ${CMAKE_INSTALL_DATADIR}/${UI_APP_NAME}/icons)
 
 install (TARGETS ${CMAKE_PROJECT_NAME}
-         DESTINATION /usr/bin)
+         DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 install (FILES ${SYSTEMD_UNIT}
-         DESTINATION /usr/lib/systemd/user)
+         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user)
 
 install (FILES ${GSCHEMA}
-         DESTINATION /usr/share/glib-2.0/schemas)
+         DESTINATION ${CMAKE_INSTALL_DATADIR}/glib-2.0/schemas)
 
 install (FILES ${DESKTOP_FILE}
-         DESTINATION /usr/share/applications)
+         DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
