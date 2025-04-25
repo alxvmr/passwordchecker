@@ -1,4 +1,5 @@
 %define gui_name PasswordCheckerSettings
+%global uuid org.altlinux.PasswordCheckerSettings
 
 Name:    passwordchecker
 Version: 0.0.1
@@ -37,6 +38,7 @@ Daemon with GUI settings for password expiration notification
 %_datadir/%gui_name
 %_user_unitdir/%name-user.service
 %_datadir/glib-2.0/schemas/org.altlinux.%name.gschema.xml
+%_desktopdir/%uuid.desktop
 
 %changelog
 * Thu Mar 06 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.0.1-alt1
