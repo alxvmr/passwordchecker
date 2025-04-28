@@ -684,6 +684,11 @@ main ()
 
     pwc = g_new (PasswordChecker, 1);
     pwc->app_id = "org.altlinux.passwordchecker";
+    pwc->expiry_time = NULL;
+    pwc->handler_id = 0;
+    pwc->pwc_ldap = NULL;
+    pwc->settings = NULL;
+    
     activate (pwc);
 
     pwc->loop = g_main_loop_new (NULL, FALSE);

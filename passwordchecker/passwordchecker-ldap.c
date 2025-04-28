@@ -321,8 +321,10 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
     attr = "msDS-UserPasswordExpiryTimeComputed";
     g_free (username);
 
-    if (!get_value_of_attr (ld, self->base_dn, LDAP_SCOPE_SUBTREE, filter, attr, &value))
+    if (!get_value_of_attr (ld, self->base_dn, LDAP_SCOPE_SUBTREE, filter, attr, &value)) {
+        g_free (filter);
         goto close;
+    }
 
     g_free (filter);
 
@@ -344,7 +346,6 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
 
 close:
     close_ldap_conn (ld);
-    g_free (filter);
     return FALSE;
 }
 
