@@ -514,7 +514,6 @@ static gboolean
 check_password_with_notification (void *data)
 {
     PasswordcheckerLdap *pwc_ldap = (PasswordcheckerLdap *) data;
-    g_print ("here\n");
 
     if (!check_password (pwc_ldap)) {
         send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
@@ -688,7 +687,7 @@ main ()
     pwc->handler_id = 0;
     pwc->pwc_ldap = NULL;
     pwc->settings = NULL;
-    
+
     activate (pwc);
 
     pwc->loop = g_main_loop_new (NULL, FALSE);
