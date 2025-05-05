@@ -1,10 +1,10 @@
 %define _unpackaged_files_terminate_build 1
-%define gui_name PasswordCheckerSettings
 %define build_dir_adwaita build_adwaita
 %define build_dir_gtk build_gtk
+%define daemon_name passwordchecker
 %global uuid org.altlinux.PasswordCheckerSettings
 
-Name:    passwordchecker
+Name:    PasswordCheckerSettings
 Version: 0.0.1
 Release: alt1
 
@@ -15,39 +15,34 @@ Url:     https://github.com/alxvmr/passwordchecker
 
 BuildRequires(pre): rpm-macros-cmake
 BuildRequires: cmake gcc gettext-tools
-BuildRequires: pkgconfig(gio-2.0) pkgconfig(wbclient)
+BuildRequires: pkgconfig(gio-2.0) pkgconfig(wbclient) pkgconfig(gtk4)
 BuildRequires: libldap-devel libsasl2-devel libwbclient-devel
-Requires: samba-winbind
+# PasswordCheckerSettings has an option to work with 
+# userpasswd (adds a button in the notification).
+# By default userpasswd is not included in dependencies,
+# it is left to the user's choice
+Requires: %name-common
 
 Source0: %name-%version.tar
 
 %description
-Daemon for password expiration notification
+GTK4 application for customizing password expiration notification settings
 
-%package -n %gui_name-common
-Summary: Translation files, .desktop and icons for PasswordCheckerSettings
+%package common
+Summary: Translation files, .desktop and daemon for PasswordCheckerSettings
 Group: System/Configuration/Other
-BuildArch: noarch
+Requires: samba-winbind
 
-%description -n %gui_name-common
+%description common
 %summary
 
-%package -n %gui_name-gtk
-Summary: A application on GTK4 to customize notification settings
-Group: System/Configuration/Other
-BuildRequires: pkgconfig(gtk4)
-Requires: %gui_name-common %name
-
-%description -n %gui_name-gtk
-%summary
-
-%package -n %gui_name-gnome
+%package gnome
 Summary: A application on Adwaita to customize notification settings
 Group: System/Configuration/Other
-BuildRequires: pkgconfig(gtk4) pkgconfig(libadwaita-1)
-Requires: %gui_name-common %name
+BuildRequires: pkgconfig(libadwaita-1)
+Requires: %name-common
 
-%description -n %gui_name-gnome
+%description gnome
 %summary
 
 %prep
@@ -67,40 +62,37 @@ cmake --build %build_dir_gtk -j%__nprocs
 %install
 DESTDIR=%buildroot cmake --install %build_dir_adwaita
 # rename PasswordCheckerSettings (adwaita) -> PasswordCheckerSettings-adwaita
-mv %buildroot%_bindir/%gui_name  %buildroot%_bindir/%gui_name-adwaita
+mv %buildroot%_bindir/%name  %buildroot%_bindir/%name-adwaita
 
 DESTDIR=%buildroot cmake --install %build_dir_gtk
 # rename PasswordCheckerSettings (gtk) -> PasswordCheckerSettings-gtk
-mv %buildroot%_bindir/%gui_name  %buildroot%_bindir/%gui_name-gtk
+mv %buildroot%_bindir/%name  %buildroot%_bindir/%name-gtk
 
 mkdir -p %buildroot/%_altdir
-cat >%buildroot/%_altdir/%gui_name-adwaita <<EOF
-%_bindir/%gui_name    %_bindir/%gui_name-adwaita    50
+cat >%buildroot/%_altdir/%name-adwaita <<EOF
+%_bindir/%name    %_bindir/%name-adwaita    50
 EOF
 
 mkdir -p %buildroot/%_altdir
-cat >%buildroot/%_altdir/%gui_name-gtk <<EOF
-%_bindir/%gui_name    %_bindir/%gui_name-gtk    30
+cat >%buildroot/%_altdir/%name-gtk <<EOF
+%_bindir/%name    %_bindir/%name-gtk    30
 EOF
 
-%find_lang %name
+%find_lang %daemon_name
 
 %files
-%_bindir/%name
-%_user_unitdir/%name-user.service
-%_datadir/glib-2.0/schemas/org.altlinux.%name.gschema.xml
+%_bindir/%name-gtk
+%_altdir/%name-gtk
 
-%files -n %gui_name-gtk
-%_bindir/%gui_name-gtk
-%_altdir/%gui_name-gtk
+%files gnome
+%_bindir/%name-adwaita
+%_altdir/%name-adwaita
 
-%files -n %gui_name-gnome
-%_bindir/%gui_name-adwaita
-%_altdir/%gui_name-adwaita
-
-%files -n %gui_name-common -f %name.lang
-%_datadir/%gui_name
+%files common -f %daemon_name.lang
 %_desktopdir/%uuid.desktop
+%_bindir/%daemon_name
+%_user_unitdir/%daemon_name-user.service
+%_datadir/glib-2.0/schemas/org.altlinux.%daemon_name.gschema.xml
 
 %changelog
 * Thu Mar 06 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.0.1-alt1
