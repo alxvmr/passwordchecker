@@ -177,6 +177,21 @@ create_connection (GDBusConnection **conn,
     return TRUE;
 }
 
+static gboolean
+is_file_exist (gchar *path)
+{
+    if (!g_file_test (path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR)) {
+        return FALSE;
+    }
+
+    if (!g_file_test (path, G_FILE_TEST_IS_EXECUTABLE)) {
+        return FALSE;
+    }
+
+    return TRUE;
+
+}
+
 gboolean
 send_warning (gpointer user_data)
 {
@@ -231,8 +246,11 @@ send_warning (gpointer user_data)
     g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
     g_variant_builder_add (&actions_builder, "s", "change-password");
     g_variant_builder_add (&actions_builder, "s", _("Change password"));
-    g_variant_builder_add (&actions_builder, "s", "change-settings");
-    g_variant_builder_add (&actions_builder, "s", _("Change the notification settings"));
+
+    if (is_file_exist ("/usr/bin/PasswordCheckerSettings")) {
+        g_variant_builder_add (&actions_builder, "s", "change-settings");
+        g_variant_builder_add (&actions_builder, "s", _("Change the notification settings"));
+    }
 
     notification->signal_invoked_action_id = g_dbus_connection_signal_subscribe (conn,
                                                                                  "org.freedesktop.Notifications",
