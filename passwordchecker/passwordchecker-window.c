@@ -548,7 +548,7 @@ static void
 passwordchecker_window_init (PasswordcheckerWindow *self)
 {
     gtk_widget_init_template (GTK_WIDGET (self));
-    gtk_window_set_default_size (GTK_WINDOW (self), 600, 400);
+    gtk_window_set_default_size (GTK_WINDOW (self), 680, 400);
 
     g_signal_connect (G_OBJECT (self->button_app), "clicked", G_CALLBACK (cb_button_app), self);
     g_signal_connect (G_OBJECT (self->button_conn), "clicked", G_CALLBACK (cb_button_conn), self);
