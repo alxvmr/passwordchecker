@@ -317,7 +317,8 @@ send_warning (gpointer user_data)
 
 static gboolean
 send_fail_notification (const gchar       *title,
-                        const gchar       *body)
+                        const gchar       *body,
+                        gboolean           with_button)
 {
     GVariant *parametrs = NULL;
     GVariant *reply = NULL;
@@ -333,8 +334,10 @@ send_fail_notification (const gchar       *title,
     notification = g_new (Notification, 1);
 
     g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
-    g_variant_builder_add (&actions_builder, "s", "change-settings");
-    g_variant_builder_add (&actions_builder, "s", _("Change the application settings"));
+    if (with_button) {
+        g_variant_builder_add (&actions_builder, "s", "change-settings");
+        g_variant_builder_add (&actions_builder, "s", _("Change the application settings"));
+    }
 
     notification->signal_invoked_action_id = g_dbus_connection_signal_subscribe (conn,
                                                                                  "org.freedesktop.Notifications",
@@ -534,7 +537,7 @@ check_password_with_notification (void *data)
     PasswordcheckerLdap *pwc_ldap = (PasswordcheckerLdap *) data;
 
     if (!check_password (pwc_ldap)) {
-        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
+        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"), TRUE);
     }
 
     return TRUE;
@@ -583,7 +586,7 @@ settings_changed (GSettings *settings,
     }
 
     if (!check_password (pwc_ldap)) {
-        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
+        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"), TRUE);
     }
 
     g_variant_unref (value_gv);
@@ -610,6 +613,7 @@ load_gsettings (gchar               *schema_name,
     change_by_user = g_settings_get_boolean (*settings, "change-conn-settings-by-user");
 
     pwc->pwc_ldap = passwordchecker_ldap_new (url, base_dn);
+    
 
     if (g_strcmp0 (url, "") == 0 || !change_by_user) {
         g_free (url);
@@ -631,7 +635,7 @@ load_gsettings (gchar               *schema_name,
                 g_warning ("Failed to write the url retrieved from webinfo to the GSettings\n");
             }
         } else {
-            gboolean send_fail = send_fail_notification (_("Automatic LDAP url calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"));
+            gboolean send_fail = send_fail_notification (_("Automatic LDAP url calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"), TRUE);
             if (!send_fail) {
                 g_printerr ("Failed to send notification\n");
             }
@@ -650,7 +654,7 @@ load_gsettings (gchar               *schema_name,
                 g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
             }
         } else {
-            gboolean send_fail = send_fail_notification (_("Automatic search root calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"));
+            gboolean send_fail = send_fail_notification (_("Automatic search root calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"), TRUE);
             if (!send_fail) {
                 g_printerr ("Failed to send notification\n");
             }
@@ -673,7 +677,7 @@ activate (PasswordChecker *pwc)
     }
 
     if (!check_password (pwc->pwc_ldap)) {
-        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"));
+        send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"), TRUE);
     }
     g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password_with_notification, pwc->pwc_ldap);
 }
@@ -691,10 +695,12 @@ main ()
 
     if (!check_active_winbind (&winbind_is_active)) {
         g_printerr ("Failed to determine the status of winbind.service\n");
+        send_fail_notification (_("Service check error"), _("Failed to determine the status of winbind.service"), FALSE);
         return 0;
     }
-    if (! winbind_is_active) {
+    if (!winbind_is_active) {
         g_printerr ("winbind.service is not started\n");
+        send_fail_notification (_("Service check error"), _("winbind.service is not started"), FALSE);
         return 0;
     }
 
