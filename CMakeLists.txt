@@ -1,7 +1,15 @@
 cmake_minimum_required(VERSION 3.12.0)
+
+#=====================
 project(passwordchecker VERSION 0.1.0 LANGUAGES C)
+set(VERSION 0.0.1)
+#=====================
 
 include (GNUInstallDirs)
+
+find_program(GLIB_COMPILE_RESOURCES NAMES glib-compile-resources REQUIRED)
+
+add_definitions(-DVERSION=\"${VERSION}\")
 
 option (USE_ADWAITA "Use Adwaita theme" ON)
 if (USE_ADWAITA)
@@ -27,22 +35,42 @@ set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/../data/passwordchecker-user.servi
 set (DESKTOP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../data/org.altlinux.PasswordCheckerSettings.desktop)
 
 set (UI_APP_NAME "PasswordCheckerSettings")
-set (SOURCES_UI ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-ui.c)
+set (SOURCES_UI ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker-app.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker-window.c)
 
-if (USE_ADWAITA)
-    set (UI_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-page-app.ui
-                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-page-con.ui
-                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-switcher.ui
-                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/passwordchecker-gnome-window.ui)
-else ()
-    set (UI_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_application.glade
-                  ${CMAKE_CURRENT_SOURCE_DIR}/../data/ui/page_connection.glade)
-endif ()
+set(RESOURCE_XML data/PasswordCheckerSettings.gresource.xml)
+set(RESOURCE_BINARY PasswordCheckerSettings.gresource.c)
 
-set (ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../data/icons/error.svg)
+add_custom_command(
+    OUTPUT ${RESOURCE_BINARY}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../
+    COMMAND ${GLIB_COMPILE_RESOURCES}
+    ARGS
+        --target ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_BINARY}
+        --sourcedir ${CMAKE_CURRENT_SOURCE_DIR}/../data
+        --generate-source
+        ${RESOURCE_XML}
+    VERBATIM
+    MAIN_DEPENDENCY ${RESOURCE_XML}
+    DEPENDS
+        data/ui/PasswordCheckerSettings-gnome.ui
+        data/ui/PasswordCheckerSettings-gtk.ui
+        data/icons/error.svg
+)
+
+add_custom_target(
+    PasswordCheckerSettings-resource
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_BINARY}
+)
+
+add_executable(${UI_APP_NAME} ${SOURCES_UI} ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_BINARY})
+set_source_files_properties (
+    ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_BINARY}
+    PROPERTIES GENERATED TRUE
+)
+add_dependencies (${UI_APP_NAME} PasswordCheckerSettings-resource)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
-add_executable(${UI_APP_NAME} ${SOURCES_UI})
 
 add_subdirectory(locales)
 
@@ -82,12 +110,6 @@ endif ()
 
 install (TARGETS ${UI_APP_NAME}
          DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-install (FILES ${UI_FILES}
-         DESTINATION ${CMAKE_INSTALL_DATADIR}/${UI_APP_NAME}/ui)
-
-install (FILES ${ICON_FILES}
-         DESTINATION ${CMAKE_INSTALL_DATADIR}/${UI_APP_NAME}/icons)
 
 install (TARGETS ${CMAKE_PROJECT_NAME}
          DESTINATION ${CMAKE_INSTALL_BINDIR})

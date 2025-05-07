@@ -1,54 +1,14 @@
-#include <gtk/gtk.h>
+#include "passwordchecker-window.h"
+
 #ifdef USE_ADWAITA
-    #include <adwaita.h>
+    G_DEFINE_FINAL_TYPE (PasswordcheckerWindow, passwordchecker_window, ADW_TYPE_APPLICATION_WINDOW)
+#else
+    G_DEFINE_FINAL_TYPE (PasswordcheckerWindow, passwordchecker_window, GTK_TYPE_APPLICATION_WINDOW)
 #endif
-#include <locale.h>
-#include <libintl.h>
 
 #define SCHEMA_NAME "org.altlinux.passwordchecker"
-#define UI_PATH "/usr/share/PasswordCheckerSettings"
 
 #define _(STRING) gettext(STRING)
-
-#ifndef USE_ADWAITA
-typedef struct _Notification_ui {
-        GtkWidget *widget;
-        guint timer_id;
-    } Notification_ui;
-#endif
-
-typedef struct _PasswordcheckerUI {
-#ifdef USE_ADWAITA
-    AdwApplication *app;
-#else
-    GtkApplication *app;
-#endif
-    const gchar *id;
-    GSettings *settings;
-    GtkWidget *url;
-    GtkWidget *base_dn;
-    GtkWidget *start_warning_time_days;
-    GtkWidget *warning_frequencies_days;
-    GtkWidget *warning_frequencies_hours;
-    GtkWidget *warning_frequencies_min;
-    GtkWidget *error_start;
-    GtkWidget *error_freq;
-
-    GtkWidget *window;
-    GtkWidget *on_enter_button;
-    GtkWidget *button_conn;
-    GtkWidget *button_app;
-
-    GtkWidget *toast_overlay;
-    GtkWidget *switch_row;
-#ifndef USE_ADWAITA
-    Notification_ui *notification;
-#endif
-
-    GtkWidget *stack;
-
-    guint owner_id;
-} PasswordCheckerUI;
 
 enum {
     TO_MINS,
@@ -57,15 +17,15 @@ enum {
 };
 
 static void
-cleanup (PasswordCheckerUI *pwd_ui)
+cleanup (PasswordcheckerWindow *self)
 {
-    g_object_unref (pwd_ui->app);
+    // g_object_unref (pwd_ui->app);
 
-    if (pwd_ui->settings) {
-        g_object_unref (pwd_ui->settings);
+    if (self->settings) {
+        g_object_unref (self->settings);
     }
 
-    g_free (pwd_ui);
+    g_free (self);
 }
 
 static gboolean
@@ -140,8 +100,8 @@ create_connection (GDBusConnection   **conn)
 }
 
 static gboolean
-check_enable_service (PasswordCheckerUI *pwd_ui,
-                      gboolean          *result)
+check_enable_service (PasswordcheckerWindow *pwd_ui,
+                      gboolean              *result)
 {
     GVariant *parametrs = NULL;
     GVariant *reply = NULL;
@@ -191,7 +151,7 @@ check_enable_service (PasswordCheckerUI *pwd_ui,
 }
 
 static gboolean
-disable_service (PasswordCheckerUI *pwd_ui)
+disable_service (PasswordcheckerWindow *pwd_ui)
 {
     GVariant *disable_result = NULL;
     GVariant *stop_result = NULL;
@@ -246,7 +206,7 @@ disable_service (PasswordCheckerUI *pwd_ui)
 }
 
 static gboolean
-enable_service (PasswordCheckerUI *pwd_ui)
+enable_service (PasswordcheckerWindow *pwd_ui)
 {
     GVariant *start_result = NULL;
     GVariant *enable_result = NULL;
@@ -324,9 +284,9 @@ hide_notification (Notification_ui **notification_ptr)
 #endif
 
 static void
-send_notification (const gchar       *body,
-                   const gchar       *status,
-                   PasswordCheckerUI *pwd_ui)
+send_notification (const gchar           *body,
+                   const gchar           *status,
+                   PasswordcheckerWindow *pwd_ui)
 {
 #ifdef USE_ADWAITA
     adw_toast_overlay_dismiss_all (ADW_TOAST_OVERLAY (pwd_ui->toast_overlay));
@@ -353,7 +313,7 @@ send_notification (const gchar       *body,
 }
 
 static gboolean
-cb_switch_row_activate (PasswordCheckerUI *pwd_ui)
+cb_switch_row_activate (PasswordcheckerWindow *pwd_ui)
 {
     gboolean active;
 #ifdef USE_ADWAITA
@@ -374,7 +334,7 @@ static void
 cb_button_conn (GtkWidget *button,
                 gpointer   user_data)
 {
-    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
+    PasswordcheckerWindow *pwd_ui = (PasswordcheckerWindow *) user_data;
 
     const gchar *url_new = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->url));
     const gchar *base_dn_new = gtk_editable_get_text (GTK_EDITABLE (pwd_ui->base_dn));
@@ -444,7 +404,7 @@ static void
 cb_button_app (GtkWidget *button,
                gpointer   user_data)
 {
-    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
+    PasswordcheckerWindow *pwd_ui = (PasswordcheckerWindow *) user_data;
 
     gtk_widget_set_visible (pwd_ui->error_start, FALSE);
     gtk_widget_set_visible (pwd_ui->error_freq, FALSE);
@@ -503,305 +463,8 @@ cb_button_app (GtkWidget *button,
 }
 
 static void
-#ifdef USE_USEADWAITA
-activate (AdwApplication *app,
-          gpointer        user_data)
-#else
-activate (GtkApplication* app,
-          gpointer        user_data)
-#endif
+setup_passwordchecker_window (PasswordcheckerWindow *self)
 {
-    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
-
-    pwd_ui->window = GTK_WIDGET (gtk_application_get_active_window (GTK_APPLICATION (pwd_ui->app)));
-    if (pwd_ui->window != NULL) {
-        gtk_window_present (GTK_WINDOW (pwd_ui->window));
-        return;
-    }
-
-    gboolean is_enable_unit;
-    // TODO: if check_enable_service return FALSE???
-    check_enable_service (pwd_ui, &is_enable_unit);
-#ifndef USE_ADWAITA
-    pwd_ui->notification = NULL;
-#endif
-
-    GError *error = NULL;
-    GtkBuilder *builder = gtk_builder_new ();
-
-#ifdef USE_ADWAITA
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-window.ui", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    AdwToolbarView *toolbar = ADW_TOOLBAR_VIEW (gtk_builder_get_object (builder, "toolbar"));
-    AdwClamp *container = ADW_CLAMP (gtk_builder_get_object (builder, "container"));
-
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-switcher.ui", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    pwd_ui->toast_overlay = GTK_WIDGET (gtk_builder_get_object (builder, "toast-overlay"));
-    AdwToolbarView *switcher = ADW_TOOLBAR_VIEW (gtk_builder_get_object (builder, "toolbar-page"));
-    // AdwViewStack *stack = ADW_VIEW_STACK (gtk_builder_get_object (builder, "stack"));
-    pwd_ui->stack = GTK_WIDGET (gtk_builder_get_object (builder, "stack"));
-
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-page-app.ui", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    pwd_ui->error_start = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error1"));
-    pwd_ui->error_freq = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error2"));
-    pwd_ui->start_warning_time_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry1-days"));
-    pwd_ui->warning_frequencies_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-days"));
-    pwd_ui->warning_frequencies_hours = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-hours"));
-    pwd_ui->warning_frequencies_min = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-min"));
-    pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
-
-    pwd_ui->switch_row = GTK_WIDGET (gtk_builder_get_object (builder, "page2-switcher-startup"));
-    adw_switch_row_set_active (ADW_SWITCH_ROW (pwd_ui->switch_row), is_enable_unit);
-
-    GtkBox *app_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-application"));
-    gtk_widget_set_name (GTK_WIDGET (app_content), "notebook-page-application");
-    AdwViewStackPage *app_page = adw_view_stack_add (ADW_VIEW_STACK (pwd_ui->stack), GTK_WIDGET (app_content));
-    adw_view_stack_page_set_title (app_page, _("Application"));
-
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/passwordchecker-gnome-page-con.ui", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    pwd_ui->url = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry1"));
-    pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
-    pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
-
-    GtkBox *con_content = GTK_BOX (gtk_builder_get_object (builder, "notebook-page-connection"));
-    gtk_widget_set_name (GTK_WIDGET (con_content), "notebook-page-connection");
-    AdwViewStackPage *con_page = adw_view_stack_add (ADW_VIEW_STACK (pwd_ui->stack), GTK_WIDGET (con_content));
-    adw_view_stack_page_set_title (con_page, _("Connection"));
-
-    adw_toolbar_view_set_content (switcher, pwd_ui->stack);
-    adw_toast_overlay_set_child (ADW_TOAST_OVERLAY (pwd_ui->toast_overlay), GTK_WIDGET (switcher));
-
-    adw_clamp_set_child (container, pwd_ui->toast_overlay);
-
-    adw_toolbar_view_set_content (toolbar, GTK_WIDGET (container));
-
-    pwd_ui->window = adw_application_window_new (GTK_APPLICATION (app));
-
-    adw_application_window_set_content (ADW_APPLICATION_WINDOW (pwd_ui->window), GTK_WIDGET (toolbar));
-
-#else
-    pwd_ui->window = gtk_application_window_new (app);
-    gtk_window_set_title (GTK_WINDOW (pwd_ui->window), "PasswordCheckerSettings");
-
-    pwd_ui->toast_overlay = gtk_overlay_new ();
-    GtkWidget *main_container = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-    pwd_ui->stack = gtk_notebook_new ();
-
-    /* page 1 */
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/page_application.glade", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    pwd_ui->error_start = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error1"));
-    pwd_ui->error_freq = GTK_WIDGET (gtk_builder_get_object (builder, "page2-error2"));
-
-    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_start), UI_PATH "/icons/error.svg");
-    gtk_image_set_from_file (GTK_IMAGE (pwd_ui->error_freq), UI_PATH "/icons/error.svg");
-
-    pwd_ui->start_warning_time_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry1-days"));
-    pwd_ui->warning_frequencies_days = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-days"));
-    pwd_ui->warning_frequencies_hours = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-hours"));
-    pwd_ui->warning_frequencies_min = GTK_WIDGET (gtk_builder_get_object (builder, "page2-entry2-min"));
-
-    pwd_ui->button_app = GTK_WIDGET (gtk_builder_get_object (builder, "page2-button1"));
-
-    GtkWidget *label_start = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label1"));
-    gtk_label_set_text (GTK_LABEL (label_start), _("Notification start time"));
-    gtk_widget_set_tooltip_text (label_start, _("How much time to warn the user about password expiration"));
-
-    GtkWidget *label_freq = GTK_WIDGET(gtk_builder_get_object (builder, "page2-label2"));
-    gtk_label_set_text (GTK_LABEL (label_freq), _("Frequency of warnings"));
-    gtk_widget_set_tooltip_text (label_freq, _("Sets the frequency of password change warning output"));
-
-    GObject *box_page_application = gtk_builder_get_object (builder, "notebook-page-application");
-    gtk_widget_set_name (GTK_WIDGET (box_page_application), "notebook-page-application");
-    GtkWidget *label_page_application = gtk_label_new (_("Application"));
-    gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_application), label_page_application);
-    g_object_unref (label_page_application);
-
-    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_app), _("Apply application settings"));
-
-    gtk_builder_add_from_file (builder, UI_PATH "/ui/page_connection.glade", &error);
-    if (error){
-        g_printerr("Error loading Glade file: %s\n", error->message);
-        g_clear_error(&error);
-        return;
-    }
-
-    pwd_ui->url = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry1"));
-    pwd_ui->base_dn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-entry2"));
-    pwd_ui->button_conn = GTK_WIDGET (gtk_builder_get_object (builder, "page1-button1"));
-
-    pwd_ui->switch_row = GTK_WIDGET (gtk_builder_get_object (builder, "page1-switcher-startup"));
-    gtk_switch_set_active (GTK_SWITCH (pwd_ui->switch_row), is_enable_unit);
-
-    /* page 2 */
-    GObject *box_page_connection = gtk_builder_get_object (builder, "notebook-page-connection");
-    gtk_widget_set_name (GTK_WIDGET (box_page_connection), "notebook-page-connection");
-
-    GtkWidget *label1 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label1"));
-    gtk_label_set_text (GTK_LABEL (label1), _("LDAP server address"));
-    gtk_widget_set_tooltip_text (label1, _("Specifies the LDAP server address (e.g. ldap://dc1.domain.test.ru)"));
-
-    GtkWidget *label2 = GTK_WIDGET(gtk_builder_get_object (builder, "page1-label2"));
-    gtk_label_set_text (GTK_LABEL (label2), _("Search root"));
-    gtk_widget_set_tooltip_text (label2, _("Specifies the search root for the desired record (e.g. 'dc=domain,dc=test,dc=ru')"));
-
-    GtkWidget *label_page_connection = gtk_label_new (_("Connection"));
-    gtk_notebook_append_page (GTK_NOTEBOOK (pwd_ui->stack), GTK_WIDGET (box_page_connection), label_page_connection);
-    g_object_unref (label_page_connection);
-
-    gtk_button_set_label (GTK_BUTTON (pwd_ui->button_conn), _("Apply connection settings"));
-
-    gtk_box_append (GTK_BOX (main_container), pwd_ui->stack);
-    gtk_overlay_set_child (GTK_OVERLAY (pwd_ui->toast_overlay), main_container);
-    gtk_window_set_child (GTK_WINDOW (pwd_ui->window), pwd_ui->toast_overlay);
-#endif
-
-    g_signal_connect (G_OBJECT (pwd_ui->button_app), "clicked", G_CALLBACK (cb_button_app), pwd_ui);
-    g_signal_connect (G_OBJECT (pwd_ui->button_conn), "clicked", G_CALLBACK (cb_button_conn), pwd_ui);
-
-    g_settings_bind (pwd_ui->settings, "url", pwd_ui->url, "text", G_SETTINGS_BIND_GET);
-    g_settings_bind (pwd_ui->settings, "base-dn", pwd_ui->base_dn, "text", G_SETTINGS_BIND_GET);
-
-    g_settings_bind_with_mapping (pwd_ui->settings,
-                                  "start-warning-time",
-                                  pwd_ui->start_warning_time_days,
-                                  "text",
-                                  G_SETTINGS_BIND_GET,
-                                  convert_x,
-                                  NULL,
-                                  pwd_ui,
-                                  NULL);
-
-    g_settings_bind_with_mapping (pwd_ui->settings,
-                                  "warning-frequencies",
-                                  pwd_ui->warning_frequencies_days,
-                                  "text",
-                                  G_SETTINGS_BIND_GET,
-                                  convert_mins,
-                                  NULL,
-                                  GINT_TO_POINTER (TO_DAYS),
-                                  NULL);
-
-    g_settings_bind_with_mapping (pwd_ui->settings,
-                                  "warning-frequencies",
-                                  pwd_ui->warning_frequencies_hours,
-                                  "text",
-                                  G_SETTINGS_BIND_GET,
-                                  convert_mins,
-                                  NULL,
-                                  GINT_TO_POINTER (TO_HOURS),
-                                  NULL);
-
-    g_settings_bind_with_mapping (pwd_ui->settings,
-                                  "warning-frequencies",
-                                  pwd_ui->warning_frequencies_min,
-                                  "text",
-                                  G_SETTINGS_BIND_GET,
-                                  convert_mins,
-                                  NULL,
-                                  GINT_TO_POINTER (TO_MINS),
-                                  NULL);                                
-
-    gtk_window_set_default_size (GTK_WINDOW (pwd_ui->window), 600, 400);
-    gtk_window_present (GTK_WINDOW (pwd_ui->window));
-
-    g_object_unref (builder);
-}
-
-static void
-on_quit_activate (GSimpleAction *action,
-                  GVariant      *parametr,
-                  gpointer       user_data)
-{
-    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
-    g_application_quit (G_APPLICATION (pwd_ui->app));
-}
-
-static void
-on_press_enter (GSimpleAction *action,
-                GVariant      *parametr,
-                gpointer       user_data)
-{
-    PasswordCheckerUI *pwd_ui = (PasswordCheckerUI *) user_data;
-
-#ifdef USE_ADWAITA
-    GtkWidget *stack_page =  adw_view_stack_get_visible_child (ADW_VIEW_STACK (pwd_ui->stack));
-    const gchar* id_page = gtk_widget_get_name (stack_page);
-#else
-    gint stack_page_number = gtk_notebook_get_current_page (GTK_NOTEBOOK (pwd_ui->stack));
-    gchar *id_page = NULL;
-    if (stack_page_number == 0)
-        id_page = "notebook-page-application";
-    else
-        id_page = "notebook-page-connection";
-#endif
-
-    if (g_strcmp0 (id_page, "notebook-page-connection") == 0) {
-        g_signal_emit_by_name (pwd_ui->button_conn, "clicked", pwd_ui);
-    } else if (g_strcmp0 (id_page, "notebook-page-application") == 0) {
-        g_signal_emit_by_name (pwd_ui->button_app, "clicked", pwd_ui);
-    }
-}
-
-static void
-startup (GApplication *app,
-         gpointer      user_data)
-{
-    static const GActionEntry actions[] = {
-        { "quit", on_quit_activate, NULL, NULL, NULL },
-        { "press_enter", on_press_enter, NULL, NULL, NULL}
-    };
-
-    g_action_map_add_action_entries (G_ACTION_MAP (app),
-                                     actions,
-                                     G_N_ELEMENTS (actions),
-                                     user_data);
-
-    gtk_application_set_accels_for_action (GTK_APPLICATION (app),
-                                           "app.quit",
-                                           (const char *[]) { "Escape", NULL });
-
-    gtk_application_set_accels_for_action (GTK_APPLICATION (app),
-                                           "app.press_enter",
-                                           (const char *[]) { "Return", NULL});
-}
-
-int
-main (int    argc,
-      char **argv)
-{
-    setlocale (LC_ALL, "");
-    bindtextdomain ("passwordchecker", "/usr/share/locale/");
-    textdomain ("passwordchecker");
-
     GSettings *settings = NULL;
     int status;
 
@@ -809,23 +472,109 @@ main (int    argc,
     if (!settings)
       g_printerr ("Unable to load gsettings schema\n");
 
-    PasswordCheckerUI *pwdui = g_new (PasswordCheckerUI, 1);
-    pwdui->settings = settings;
+    self->settings = settings;
 
-    pwdui->id = "org.altlinux.passwordchecker-settings";
+    g_settings_bind (self->settings, "url", self->url, "text", G_SETTINGS_BIND_GET);
+    g_settings_bind (self->settings, "base-dn", self->base_dn, "text", G_SETTINGS_BIND_GET);
 
+    g_settings_bind_with_mapping (self->settings,
+                                  "start-warning-time",
+                                  self->start_warning_time_days,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_x,
+                                  NULL,
+                                  self,
+                                  NULL);
+
+    g_settings_bind_with_mapping (self->settings,
+                                  "warning-frequencies",
+                                  self->warning_frequencies_days,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_mins,
+                                  NULL,
+                                  GINT_TO_POINTER (TO_DAYS),
+                                  NULL);
+
+    g_settings_bind_with_mapping (self->settings,
+                                  "warning-frequencies",
+                                  self->warning_frequencies_hours,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_mins,
+                                  NULL,
+                                  GINT_TO_POINTER (TO_HOURS),
+                                  NULL);
+
+    g_settings_bind_with_mapping (self->settings,
+                                  "warning-frequencies",
+                                  self->warning_frequencies_min,
+                                  "text",
+                                  G_SETTINGS_BIND_GET,
+                                  convert_mins,
+                                  NULL,
+                                  GINT_TO_POINTER (TO_MINS),
+                                  NULL);                                
+}
+
+static void
+passwordchecker_window_class_init (PasswordcheckerWindowClass *class)
+{
 #ifdef USE_ADWAITA
-    pwdui->app = adw_application_new (pwdui->id, G_APPLICATION_FLAGS_NONE);
+    gtk_widget_class_set_template_from_resource (GTK_WIDGET_CLASS (class),
+                                               "/org/altlinux/PasswordCheckerSettings/PasswordCheckerSettings-gnome.ui");
 #else
-    pwdui->app = gtk_application_new (pwdui->id, G_APPLICATION_FLAGS_NONE);
+    gtk_widget_class_set_template_from_resource (GTK_WIDGET_CLASS (class),
+                                               "/org/altlinux/PasswordCheckerSettings/PasswordCheckerSettings-gtk.ui");
 #endif
 
-    g_signal_connect (pwdui->app, "startup", G_CALLBACK (startup), pwdui);
-    g_signal_connect (pwdui->app, "activate", G_CALLBACK (activate), pwdui);
-    
-    status = g_application_run (G_APPLICATION (pwdui->app), argc, argv);
-    
-    cleanup (pwdui);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, toast_overlay);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, stack);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, error_start);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, error_freq);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, start_warning_time_days);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, warning_frequencies_days);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, warning_frequencies_hours);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, warning_frequencies_min);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, switch_row);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, url);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, base_dn);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, button_conn);
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, button_app);
+#ifdef USE_ADWAITA
+    gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, menu);
+#endif
+}
 
-    return status;
+static void
+passwordchecker_window_init (PasswordcheckerWindow *self)
+{
+    gtk_widget_init_template (GTK_WIDGET (self));
+    gtk_window_set_default_size (GTK_WINDOW (self), 600, 400);
+
+    g_signal_connect (G_OBJECT (self->button_app), "clicked", G_CALLBACK (cb_button_app), self);
+    g_signal_connect (G_OBJECT (self->button_conn), "clicked", G_CALLBACK (cb_button_conn), self);
+
+    gtk_image_set_from_resource (GTK_IMAGE (self->error_start), "/org/altlinux/PasswordCheckerSettings/error.svg");
+    gtk_image_set_from_resource (GTK_IMAGE (self->error_freq), "/org/altlinux/PasswordCheckerSettings/error.svg");
+
+    gboolean is_enable_unit;
+    check_enable_service (self, &is_enable_unit);
+#ifdef USE_ADWAITA
+    adw_switch_row_set_active (ADW_SWITCH_ROW (self->switch_row), is_enable_unit);
+    GMenu *menu = g_menu_new ();
+    gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->menu), G_MENU_MODEL (menu));
+
+    g_menu_append (menu, _("About"), "app.about");
+    g_menu_append (menu, _("Quit"), "app.quit");
+#else
+    gtk_switch_set_active (GTK_SWITCH (self->switch_row), is_enable_unit);
+#endif
+
+#ifndef USE_ADWAITA
+    self->notification = NULL;
+#endif
+    
+    setup_passwordchecker_window (self);
 }
