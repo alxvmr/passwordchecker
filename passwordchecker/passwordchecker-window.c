@@ -157,7 +157,6 @@ disable_service (PasswordcheckerWindow *pwd_ui)
     GVariant *stop_result = NULL;
     GDBusConnection *conn = NULL;
     GError *error = NULL;
-    gchar *state = NULL;
 
     if (!create_connection (&conn)) {
         return FALSE;
@@ -212,7 +211,6 @@ enable_service (PasswordcheckerWindow *pwd_ui)
     GVariant *enable_result = NULL;
     GDBusConnection *conn = NULL;
     GError *error = NULL;
-    gchar *state = NULL;
 
     if (!create_connection (&conn)) {
         return FALSE;
@@ -466,7 +464,6 @@ static void
 setup_passwordchecker_window (PasswordcheckerWindow *self)
 {
     GSettings *settings = NULL;
-    int status;
 
     settings = g_settings_new (SCHEMA_NAME);
     if (!settings)

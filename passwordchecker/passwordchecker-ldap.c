@@ -141,7 +141,7 @@ LDAP*
 open_ldap_conn (PasswordcheckerLdap  *self)
 {
     LDAP *ld = NULL;
-    gint rc, rc_set_opt;
+    gint rc;
 
     if (self->url == NULL) {
         g_printerr ("open_ldap_conn failed: Unable to open a connection to the ldap server. URL is empty\n");
@@ -227,7 +227,7 @@ get_value_of_attr (LDAP *ld,
     }
 
     if (rc != LDAP_SUCCESS) {
-        g_print ("ldap_search_ext_s failed: %s\n", ldap_err2string (rc));
+        g_printerr ("ldap_search_ext_s failed: %s\n", ldap_err2string (rc));
         ldap_msgfree (result);
         return FALSE;
     }
@@ -259,7 +259,6 @@ passwordchecker_get_base_dn (PasswordcheckerLdap  *self,
 {
     LDAP *ld = NULL;
     gchar *value = NULL;
-    gint rc;
 
     *base_dn = NULL;
 
@@ -275,7 +274,7 @@ passwordchecker_get_base_dn (PasswordcheckerLdap  *self,
         goto close;
 
     if (!value)
-        g_print ("Failed to evaluate base_dn\n");
+        g_printerr ("Failed to evaluate base_dn\n");
     else {
         *base_dn = g_strdup (value);
         g_free (value);
@@ -300,7 +299,6 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
     gchar *filter = NULL;
     gchar *username = NULL;
     gchar *attr = NULL;
-    gint rc;
 
     if (self->url == NULL || self->base_dn == NULL)
         return FALSE;
@@ -329,7 +327,7 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
     g_free (filter);
 
     if (!value)
-        g_print ("Failed to evaluate msDS-UserPasswordExpiryTimeComputed\n");
+        g_printerr ("Failed to evaluate msDS-UserPasswordExpiryTimeComputed\n");
     else {
         GDateTime *res = NULL;
         if (get_date_from_ad_timestamp (value, &res)) {
@@ -349,7 +347,7 @@ close:
     return FALSE;
 }
 
-gboolean
+void
 passwordchecker_ldap_set_url (gchar               *url,
                               PasswordcheckerLdap *self)
 {
@@ -362,7 +360,7 @@ passwordchecker_ldap_set_url (gchar               *url,
         self->url = g_strdup (url);
 }
 
-gboolean
+void
 passwordchecker_ldap_set_base_dn (gchar               *base_dn,
                                   PasswordcheckerLdap *self)
 {

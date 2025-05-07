@@ -24,11 +24,11 @@ PasswordcheckerLdap*
 passwordchecker_ldap_new (gchar *url,
                           gchar *base_dn);
 
-gboolean
+void
 passwordchecker_ldap_set_url (gchar               *url,
                               PasswordcheckerLdap *self);
 
-gboolean
+void
 passwordchecker_ldap_set_base_dn (gchar               *base_dn,
                                   PasswordcheckerLdap *self);
 

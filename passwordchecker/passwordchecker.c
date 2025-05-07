@@ -61,8 +61,6 @@ on_subprocess_finished (GObject *source_object,
     if (error) {
         g_printerr("Error waiting for subprocess (%s): %s\n", command, error->message);
         g_error_free(error);
-    } else {
-        g_print("Subprocess (%s) exited with code: %d\n", command, exit_code);
     }
 
     if (command != NULL) {
@@ -689,7 +687,6 @@ main ()
     textdomain ("passwordchecker");
 
     gint rc;
-    GError *error = NULL;
     gboolean winbind_is_active = FALSE;
 
     if (!check_active_winbind (&winbind_is_active)) {
