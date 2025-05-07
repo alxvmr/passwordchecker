@@ -244,9 +244,11 @@ send_warning (gpointer user_data)
     }
 
     g_variant_builder_init (&actions_builder, G_VARIANT_TYPE ("as"));
-    g_variant_builder_add (&actions_builder, "s", "change-password");
-    g_variant_builder_add (&actions_builder, "s", _("Change password"));
 
+    if (is_file_exist ("/usr/bin/userpasswd")) {
+        g_variant_builder_add (&actions_builder, "s", "change-password");
+        g_variant_builder_add (&actions_builder, "s", _("Change password"));
+    }
     if (is_file_exist ("/usr/bin/PasswordCheckerSettings")) {
         g_variant_builder_add (&actions_builder, "s", "change-settings");
         g_variant_builder_add (&actions_builder, "s", _("Change the notification settings"));
