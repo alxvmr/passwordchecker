@@ -1,4 +1,5 @@
 #include "passwordchecker-ldap.h"
+#include "passwordchecker-indicator.h"
 #include "winbind-helper.h"
 #include <math.h>
 #include <locale.h>
@@ -23,6 +24,8 @@ typedef struct _PasswordChecker {
     gulong handler_id;
 
     gchar *expiry_time;
+
+    PasswordcheckerIndicator *indicator;
 } PasswordChecker;
 
 typedef struct _Notification {
@@ -44,6 +47,9 @@ cleanup (PasswordChecker *pwc)
 
     if (pwc->expiry_time != NULL)
         g_free (pwc->expiry_time);
+
+    if (pwc->indicator != NULL)
+        g_object_unref(pwc->indicator);
 }
 
 static void
@@ -70,11 +76,9 @@ on_subprocess_finished (GObject *source_object,
     g_object_unref (subprocess);
 }
 
-static void
+void
 on_run_subprocess (const gchar *command)
 {
-    // g_print ("<Run change password>\n");
-    
     GSubprocess *subprocess = NULL;
     GError *error = NULL;
 
@@ -513,14 +517,15 @@ check_password (void *data)
         pwc->expiry_time = NULL;
     }
 
+    pwc->expiry_time = g_date_time_format (dt, "%d-%m-%Y %H:%M:%S");
+    passwordchecker_indicator_set_time (pwc->indicator, pwc->expiry_time);
+
     if (TIMER_WARNING_ID != 0) {
         g_source_remove (TIMER_WARNING_ID);
         TIMER_WARNING_ID = 0;
     }
 
     if (START_WARNING_TIME >= diff_hours) {
-        pwc->expiry_time = g_date_time_format (dt, "%d-%m-%Y %H:%M:%S");
-
         send_warning (pwc->expiry_time);
         TIMER_WARNING_ID = g_timeout_add_seconds (WARNING_FREQ, send_warning, pwc->expiry_time);
     }
@@ -676,6 +681,8 @@ activate (PasswordChecker *pwc)
         return EXIT_FAILURE;
     }
 
+    passwordchecker_indicator_setup(pwc->indicator, "org.altlinux.passwordchecker", "dialog-information");
+
     if (!check_password (pwc->pwc_ldap)) {
         send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"), TRUE);
     }
@@ -689,6 +696,11 @@ main ()
     setlocale (LC_ALL, "");
     bindtextdomain ("passwordchecker", "/usr/share/locale/");
     textdomain ("passwordchecker");
+
+    if (!gtk_init_check(NULL, NULL)) {
+        g_printerr("Failed to initialize GTK\n");
+        return EXIT_FAILURE;
+    }
 
     gint rc;
     gboolean winbind_is_active = FALSE;
@@ -710,6 +722,7 @@ main ()
     pwc->handler_id = 0;
     pwc->pwc_ldap = NULL;
     pwc->settings = NULL;
+    pwc->indicator = passwordchecker_indicator_new ();
 
     activate (pwc);
 
