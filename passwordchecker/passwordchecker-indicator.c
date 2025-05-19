@@ -11,6 +11,7 @@ struct _PasswordcheckerIndicator {
 G_DEFINE_TYPE (PasswordcheckerIndicator, passwordchecker_indicator, G_TYPE_OBJECT)
 
 extern void on_run_subprocess (const gchar *command);
+extern gboolean is_file_exist (gchar *path);
 
 static void
 passwordchecker_indicator_change_password (GSimpleAction *action,
@@ -120,10 +121,12 @@ void passwordchecker_indicator_setup (PasswordcheckerIndicator *self,
                                              G_CALLBACK (passwordchecker_indicator_change_settings),
                                              g_application_get_default ());
 
-    passwordchecker_indicator_add_menu_item (self,
-                                             _("Change password"),
-                                             G_CALLBACK (passwordchecker_indicator_change_password),
-                                             g_application_get_default ());
+    if (is_file_exist ("/usr/bin/userpasswd")) {
+        passwordchecker_indicator_add_menu_item (self,
+                                                 _("Change password"),
+                                                 G_CALLBACK (passwordchecker_indicator_change_password),
+                                                 g_application_get_default ());
+    }
 
     GtkWidget *separator = gtk_separator_menu_item_new();
     gtk_menu_shell_append (GTK_MENU_SHELL(self->menu), separator);

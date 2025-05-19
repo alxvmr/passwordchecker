@@ -179,7 +179,7 @@ create_connection (GDBusConnection **conn,
     return TRUE;
 }
 
-static gboolean
+gboolean
 is_file_exist (gchar *path)
 {
     if (!g_file_test (path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR)) {
