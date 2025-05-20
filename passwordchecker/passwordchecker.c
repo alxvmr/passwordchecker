@@ -52,46 +52,20 @@ cleanup (PasswordChecker *pwc)
         g_object_unref(pwc->indicator);
 }
 
-static void
-on_subprocess_finished (GObject *source_object,
-                        GAsyncResult *result,
-                        gpointer user_data)
-{
-    GError *error = NULL;
-    GSubprocess *subprocess = G_SUBPROCESS (source_object);
-    gchar *command = NULL;
-    command = (gchar*) user_data;
-
-    gint exit_code = g_subprocess_wait_finish (subprocess, result, &error);
-
-    if (error) {
-        g_printerr("Error waiting for subprocess (%s): %s\n", command, error->message);
-        g_error_free(error);
-    }
-
-    if (command != NULL) {
-        g_free (command);
-    }
-
-    g_object_unref (subprocess);
-}
-
 void
 on_run_subprocess (const gchar *command)
 {
-    GSubprocess *subprocess = NULL;
     GError *error = NULL;
 
-    subprocess = g_subprocess_new (G_SUBPROCESS_FLAGS_NONE,
-                                   &error,
-                                   command, NULL);
+    gchar *cmd = g_strdup_printf(
+        "systemd-run --user --scope "
+        "--slice=background.slice "
+        "%s",
+        command
+    );
 
-    if (subprocess == NULL) {
-        g_printerr ("Error creating subprocess: %s\n", error->message);
-        g_error_free (error);
-    } else {
-        g_subprocess_wait_async (subprocess, NULL, on_subprocess_finished, g_strdup (command));
-    }
+    g_spawn_command_line_async(cmd, NULL);
+    g_free(cmd);
 }
 
 static void
