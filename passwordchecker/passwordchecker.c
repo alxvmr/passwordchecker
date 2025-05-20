@@ -681,7 +681,7 @@ activate (PasswordChecker *pwc)
         return EXIT_FAILURE;
     }
 
-    passwordchecker_indicator_setup(pwc->indicator, "org.altlinux.passwordchecker", "dialog-information");
+    passwordchecker_indicator_setup(pwc->indicator, "org.altlinux.passwordchecker", "");
 
     if (!check_password (pwc->pwc_ldap)) {
         send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"), TRUE);
