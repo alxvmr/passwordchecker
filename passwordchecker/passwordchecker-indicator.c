@@ -117,7 +117,7 @@ void passwordchecker_indicator_setup (PasswordcheckerIndicator *self,
     app_indicator_set_menu(self->indicator, GTK_MENU(self->menu));
 
     passwordchecker_indicator_add_menu_item (self,
-                                             _("Change notification settings"),
+                                             _("Change the notification settings"),
                                              G_CALLBACK (passwordchecker_indicator_change_settings),
                                              g_application_get_default ());
 
