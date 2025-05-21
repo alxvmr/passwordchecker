@@ -2,7 +2,6 @@
 %define build_dir_adwaita build_adwaita
 %define build_dir_gtk build_gtk
 %define daemon_name passwordchecker
-%global uuid org.altlinux.PasswordCheckerSettings
 
 Name:    PasswordCheckerSettings
 Version: 0.0.1
@@ -16,6 +15,7 @@ Url:     https://github.com/alxvmr/passwordchecker
 BuildRequires(pre): rpm-macros-cmake
 BuildRequires: cmake gcc gettext-tools
 BuildRequires: pkgconfig(gio-2.0) pkgconfig(wbclient) pkgconfig(gtk4)
+BuildRequires: libayatana-appindicator3-devel
 BuildRequires: libldap-devel libsasl2-devel libwbclient-devel
 # PasswordCheckerSettings has an option to work with 
 # userpasswd (adds a button in the notification).
@@ -95,6 +95,6 @@ EOF
 %_datadir/glib-2.0/schemas/org.altlinux.%daemon_name.gschema.xml
 
 %changelog
-* Thu Mar 06 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.0.1-alt1
+* Wed May 21 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.0.1-alt1
 - Init build
 
