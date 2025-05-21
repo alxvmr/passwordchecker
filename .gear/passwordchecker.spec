@@ -89,7 +89,7 @@ EOF
 %_altdir/%name-adwaita
 
 %files common -f %daemon_name.lang
-%_desktopdir/%uuid.desktop
+%_desktopdir/%name.desktop
 %_bindir/%daemon_name
 %_user_unitdir/%daemon_name-user.service
 %_datadir/glib-2.0/schemas/org.altlinux.%daemon_name.gschema.xml

@@ -34,7 +34,7 @@ set (SOURCES ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker.c
              ${CMAKE_CURRENT_SOURCE_DIR}winbind-helper.c
              ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-indicator.c)
 set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/../data/passwordchecker-user.service)
-set (DESKTOP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../data/org.altlinux.PasswordCheckerSettings.desktop)
+set (DESKTOP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../data/PasswordCheckerSettings.desktop)
 
 set (UI_APP_NAME "PasswordCheckerSettings")
 set (SOURCES_UI ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker-app.c
