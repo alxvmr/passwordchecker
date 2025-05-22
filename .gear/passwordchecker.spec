@@ -33,6 +33,7 @@ GTK4 application for customizing password expiration notification settings
 Summary: Translation files, .desktop and daemon for password-checker
 Group: System/Configuration/Other
 Requires: samba-winbind
+Requires: icon-theme-adwaita
 
 %description common
 %summary
