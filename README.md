@@ -5,13 +5,13 @@
 The application allows you to notify the user at a set time and frequency of password expiry
 
 <p align="center">
-    <img src="https://psv4.userapi.com/s/v1/d/azstsEif6HXojw0WgCua0VosO5CeTHC11RM7WVVPCKfUsyBWs38rth29JOYGePmjZ-EHtJDebcYTkOcGOpZ7EaCwkLC6xOPwTZdkNwx0IMPXmc_HJzGjqw/Group_3_3.png">
+    <img src="https://psv4.userapi.com/s/v1/d/aYz4CIC0qqkz7YAzRrO-AKu9-Zc2V-pog8gOlTSpQT8fecQMEjF8DWuQt0CEGIxHdZbogDOoJkCnjaFCrV8pHuQ_mn5LGV5uZTUxxAhWFn19mYYP-VfuoQ/Group_4_1.png">
 </p>
 
 The application was developed for [ALT Linux distributions](https://getalt.org/en/)
 
 # About the application
-The application includes 2 executable files: `passwordchecker` and `PasswordCheckerSettings`
+The application includes 2 executable files: `passwordchecker` and `password-checker`
 
 - **`passwordchecker`** - systemd unit.
   Responsible for:
@@ -19,13 +19,13 @@ The application includes 2 executable files: `passwordchecker` and `PasswordChec
   - time checking
   - starting timers for notifications
 
-- **`PasswordCheckerSettings`** - GUI interface for passwordchecker configuration.
+- **`password-checker`** - GUI interface for passwordchecker configuration.
   - Sets the settings for LDAP search
   - Sets the time settings for sending notifications (how many alerts to send and at what intervals)
 
 The GUI is provided in 2 variants:
-- **`PasswordCheckerSettings`** - uses only GTK4 for UI
-- **`PasswordCheckerSettings-gnome`** - uses Adwaita library for UI
+- **`password-checker`** - uses only GTK4 for UI
+- **`password-checker-gnome`** - uses Adwaita library for UI
 
 These components are linked through GSettings
 
@@ -73,12 +73,12 @@ The `.spec` file for the project is in the repository:
 .gear/passwordchecker.spec
 ```
 After the RPM package is built, the following packages will be created:
-* `PasswordCheckerSettings-common-<version>-<release>.<arch>.rpm` - provides common files for PasswordCheckerSettings and PasswordCheckerSettings-gnome (daemon, desktop file, icons, translations, ...);
-* `PasswordCheckerSettings-<version>-<release>.<arch>.rpm` - provides an application binary with only GTK4 version;
-* `PasswordCheckerSettings-gnome-<version>-<release>.<arch>.rpm` - provides an application binary with Adwaita version.
+* `password-checker-common-<version>-<release>.<arch>.rpm` - provides common files for password-checker and password-checker-gnome (daemon, desktop file, icons, translations, ...);
+* `password-checker-<version>-<release>.<arch>.rpm` - provides an application binary with only GTK4 version;
+* `password-checker-gnome-<version>-<release>.<arch>.rpm` - provides an application binary with Adwaita version.
 
 > [!WARNING]
-> The `PasswordCheckerSettings-common` package is required for the rest of the packages to work
+> The `password-checker-common` package is required for the rest of the packages to work
 
 > [!WARNING]
-> If `PasswordCheckerSettings` and `PasswordCheckerSettings-gnome` packages are installed on the system at the same time, the binary from `PasswordCheckerSettings-gnome` will be used thanks to the alternatives mechanism
+> If `password-checker` and `password-checker-gnome` packages are installed on the system at the same time, the binary from `password-checker-gnome` will be used thanks to the alternatives mechanism
