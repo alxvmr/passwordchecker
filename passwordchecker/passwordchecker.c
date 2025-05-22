@@ -92,7 +92,7 @@ on_action_invoked (GDBusConnection *conn,
         on_run_subprocess ("userpasswd");
     }
     else if (g_strcmp0 (action_key, "change-settings") == 0) {
-        on_run_subprocess ("PasswordCheckerSettings");
+        on_run_subprocess ("password-checker");
     }
 
 exit:
@@ -225,7 +225,7 @@ send_warning (gpointer user_data)
         g_variant_builder_add (&actions_builder, "s", "change-password");
         g_variant_builder_add (&actions_builder, "s", _("Change password"));
     }
-    if (is_file_exist ("/usr/bin/PasswordCheckerSettings")) {
+    if (is_file_exist ("/usr/bin/password-checker")) {
         g_variant_builder_add (&actions_builder, "s", "change-settings");
         g_variant_builder_add (&actions_builder, "s", _("Change the notification settings"));
     }
@@ -614,7 +614,7 @@ load_gsettings (gchar               *schema_name,
                 g_warning ("Failed to write the url retrieved from webinfo to the GSettings\n");
             }
         } else {
-            gboolean send_fail = send_fail_notification (_("Automatic LDAP url calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"), TRUE);
+            gboolean send_fail = send_fail_notification (_("Automatic LDAP url calculation failed"), _("You could specify the data manually in PasswordChecker"), TRUE);
             if (!send_fail) {
                 g_printerr ("Failed to send notification\n");
             }
@@ -633,7 +633,7 @@ load_gsettings (gchar               *schema_name,
                 g_warning ("Failed to write the base-dn retrieved from webinfo to the GSettings\n");
             }
         } else {
-            gboolean send_fail = send_fail_notification (_("Automatic search root calculation failed"), _("You could specify the data manually in PasswordCheckerSettings"), TRUE);
+            gboolean send_fail = send_fail_notification (_("Automatic search root calculation failed"), _("You could specify the data manually in PasswordChecker"), TRUE);
             if (!send_fail) {
                 g_printerr ("Failed to send notification\n");
             }

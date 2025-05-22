@@ -2,8 +2,9 @@
 %define build_dir_adwaita build_adwaita
 %define build_dir_gtk build_gtk
 %define daemon_name passwordchecker
+%define app_name PasswordChecker
 
-Name:    PasswordCheckerSettings
+Name:    password-checker
 Version: 0.0.1
 Release: alt1
 
@@ -17,7 +18,7 @@ BuildRequires: cmake gcc gettext-tools
 BuildRequires: pkgconfig(gio-2.0) pkgconfig(wbclient) pkgconfig(gtk4)
 BuildRequires: libayatana-appindicator3-devel
 BuildRequires: libldap-devel libsasl2-devel libwbclient-devel
-# PasswordCheckerSettings has an option to work with 
+# password-checker has an option to work with 
 # userpasswd (adds a button in the notification).
 # By default userpasswd is not included in dependencies,
 # it is left to the user's choice
@@ -29,7 +30,7 @@ Source0: %name-%version.tar
 GTK4 application for customizing password expiration notification settings
 
 %package common
-Summary: Translation files, .desktop and daemon for PasswordCheckerSettings
+Summary: Translation files, .desktop and daemon for password-checker
 Group: System/Configuration/Other
 Requires: samba-winbind
 
@@ -61,11 +62,11 @@ cmake --build %build_dir_gtk -j%__nprocs
 
 %install
 DESTDIR=%buildroot cmake --install %build_dir_adwaita
-# rename PasswordCheckerSettings (adwaita) -> PasswordCheckerSettings-adwaita
+# rename password-checker (adwaita) -> password-checker-adwaita
 mv %buildroot%_bindir/%name  %buildroot%_bindir/%name-adwaita
 
 DESTDIR=%buildroot cmake --install %build_dir_gtk
-# rename PasswordCheckerSettings (gtk) -> PasswordCheckerSettings-gtk
+# rename password-checker (gtk) -> password-checker-gtk
 mv %buildroot%_bindir/%name  %buildroot%_bindir/%name-gtk
 
 mkdir -p %buildroot/%_altdir
@@ -89,7 +90,7 @@ EOF
 %_altdir/%name-adwaita
 
 %files common -f %daemon_name.lang
-%_desktopdir/%name.desktop
+%_desktopdir/%app_name.desktop
 %_bindir/%daemon_name
 %_user_unitdir/%daemon_name-user.service
 %_datadir/glib-2.0/schemas/org.altlinux.%daemon_name.gschema.xml

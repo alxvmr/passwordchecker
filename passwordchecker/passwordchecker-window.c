@@ -520,10 +520,10 @@ passwordchecker_window_class_init (PasswordcheckerWindowClass *class)
 {
 #ifdef USE_ADWAITA
     gtk_widget_class_set_template_from_resource (GTK_WIDGET_CLASS (class),
-                                               "/org/altlinux/PasswordCheckerSettings/PasswordCheckerSettings-gnome.ui");
+                                               "/org/altlinux/PasswordChecker/PasswordChecker-gnome.ui");
 #else
     gtk_widget_class_set_template_from_resource (GTK_WIDGET_CLASS (class),
-                                               "/org/altlinux/PasswordCheckerSettings/PasswordCheckerSettings-gtk.ui");
+                                               "/org/altlinux/PasswordChecker/PasswordChecker-gtk.ui");
 #endif
 
     gtk_widget_class_bind_template_child (GTK_WIDGET_CLASS (class), PasswordcheckerWindow, toast_overlay);
@@ -553,8 +553,8 @@ passwordchecker_window_init (PasswordcheckerWindow *self)
     g_signal_connect (G_OBJECT (self->button_app), "clicked", G_CALLBACK (cb_button_app), self);
     g_signal_connect (G_OBJECT (self->button_conn), "clicked", G_CALLBACK (cb_button_conn), self);
 
-    gtk_image_set_from_resource (GTK_IMAGE (self->error_start), "/org/altlinux/PasswordCheckerSettings/error.svg");
-    gtk_image_set_from_resource (GTK_IMAGE (self->error_freq), "/org/altlinux/PasswordCheckerSettings/error.svg");
+    gtk_image_set_from_resource (GTK_IMAGE (self->error_start), "/org/altlinux/PasswordChecker/error.svg");
+    gtk_image_set_from_resource (GTK_IMAGE (self->error_freq), "/org/altlinux/PasswordChecker/error.svg");
 
     gboolean is_enable_unit;
     check_enable_service (self, &is_enable_unit);

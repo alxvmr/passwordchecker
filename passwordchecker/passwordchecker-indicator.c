@@ -26,7 +26,7 @@ passwordchecker_indicator_change_settings (GSimpleAction *action,
                                            GVariant      *parametr,
                                            gpointer       userdata)
 {
-    on_run_subprocess ("PasswordCheckerSettings");
+    on_run_subprocess ("password-checker");
 }
 
 static void passwordchecker_indicator_dispose(GObject *gobject)

@@ -34,14 +34,14 @@ set (SOURCES ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker.c
              ${CMAKE_CURRENT_SOURCE_DIR}winbind-helper.c
              ${CMAKE_CURRENT_SOURCE_DIR}passwordchecker-indicator.c)
 set (SYSTEMD_UNIT ${CMAKE_CURRENT_SOURCE_DIR}/../data/passwordchecker-user.service)
-set (DESKTOP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../data/PasswordCheckerSettings.desktop)
+set (DESKTOP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../data/PasswordChecker.desktop)
 
-set (UI_APP_NAME "PasswordCheckerSettings")
+set (UI_APP_NAME "password-checker")
 set (SOURCES_UI ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker-app.c
                 ${CMAKE_CURRENT_SOURCE_DIR}/passwordchecker-window.c)
 
-set(RESOURCE_XML data/PasswordCheckerSettings.gresource.xml)
-set(RESOURCE_BINARY PasswordCheckerSettings.gresource.c)
+set(RESOURCE_XML data/PasswordChecker.gresource.xml)
+set(RESOURCE_BINARY PasswordChecker.gresource.c)
 
 add_custom_command(
     OUTPUT ${RESOURCE_BINARY}
@@ -55,13 +55,13 @@ add_custom_command(
     VERBATIM
     MAIN_DEPENDENCY ${RESOURCE_XML}
     DEPENDS
-        data/ui/PasswordCheckerSettings-gnome.ui
-        data/ui/PasswordCheckerSettings-gtk.ui
+        data/ui/PasswordChecker-gnome.ui
+        data/ui/PasswordChecker-gtk.ui
         data/icons/error.svg
 )
 
 add_custom_target(
-    PasswordCheckerSettings-resource
+    password-checker-resource
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_BINARY}
 )
 
@@ -70,7 +70,7 @@ set_source_files_properties (
     ${CMAKE_CURRENT_BINARY_DIR}/${RESOURCE_BINARY}
     PROPERTIES GENERATED TRUE
 )
-add_dependencies (${UI_APP_NAME} PasswordCheckerSettings-resource)
+add_dependencies (${UI_APP_NAME} password-checker-resource)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES})
 

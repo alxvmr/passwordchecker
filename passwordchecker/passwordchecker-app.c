@@ -36,7 +36,7 @@ passwordchecker_app_about_action (GSimpleAction *action,
     window = gtk_application_get_active_window (GTK_APPLICATION (self));
     
     adw_show_about_dialog (GTK_WIDGET (window),
-                           "application-name", "PasswordCheckerSettings",
+                           "application-name", "PasswordChecker",
                            "version", VERSION,
                            "copyright", "Copyright (C) 2025 Maria O. Alexeeva\nalxvmr@altlinux.org",
                            "issue-url", "https://github.com/alxvmr/passwordchecker/issues",
@@ -155,9 +155,9 @@ main (int     argc,
     bindtextdomain ("passwordchecker", "/usr/share/locale/");
     textdomain ("passwordchecker");
 
-    g_set_application_name ("PasswordCheckerSettings");
+    g_set_application_name ("PasswordChecker");
 
-    PasswordcheckerApp *app = passwordchecker_app_new ("org.altlinux.PasswordCheckerSettings", G_APPLICATION_DEFAULT_FLAGS);
+    PasswordcheckerApp *app = passwordchecker_app_new ("org.altlinux.PasswordChecker", G_APPLICATION_DEFAULT_FLAGS);
     
     int status = 0;
     status = g_application_run (G_APPLICATION (app), argc, argv);
