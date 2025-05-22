@@ -20,6 +20,12 @@ typedef struct _PasswordcheckerLdap {
     gchar *username;
 } PasswordcheckerLdap;
 
+enum {
+    SUCCESS,
+    FAILED,
+    VALUE_NOT_SET
+};
+
 PasswordcheckerLdap*
 passwordchecker_ldap_new (gchar *url,
                           gchar *base_dn);
@@ -32,7 +38,7 @@ void
 passwordchecker_ldap_set_base_dn (gchar               *base_dn,
                                   PasswordcheckerLdap *self);
 
-gboolean
+gint
 passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
                                     GDateTime           **datetime);
 

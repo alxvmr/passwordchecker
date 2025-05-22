@@ -468,12 +468,14 @@ check_password (void *data)
     PasswordcheckerLdap *pwc_ldap = (PasswordcheckerLdap *) data;
 
     rc = passwordchecker_ldap_get_date_time (pwc_ldap, &dt);
-    if (!dt || !rc) {
-        /*
-        TODO: add notification
-        */
+    if (rc == FAILED) {
         g_printerr ("Failed to get date from LDAP server\n");
         return FALSE;
+    }
+
+    if (rc == VALUE_NOT_SET) {
+        passwordchecker_indicator_set_time (pwc->indicator, _("Always"));
+        return TRUE;
     }
 
     current_time = g_date_time_new_now_local();

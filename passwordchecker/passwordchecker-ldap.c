@@ -290,7 +290,7 @@ close:
     return FALSE;
 }
 
-gboolean
+gint
 passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
                                     GDateTime           **datetime)
 {
@@ -301,18 +301,18 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
     gchar *attr = NULL;
 
     if (self->url == NULL || self->base_dn == NULL)
-        return FALSE;
+        return FAILED;
 
     ld = open_ldap_conn (self);
     if (ld == NULL) {
-        return FALSE;
+        return FAILED;
     }
 
     username = get_username ();
     if (!username) {
         g_printerr ("Username is NULL\n");
         close_ldap_conn (ld);
-        return FALSE;
+        return FAILED;
     }
 
     filter = g_strdup_printf("(&(!(userAccountControl:1.2.840.113556.1.4.803:=65536))(sAMAccountName=%s))", username);
@@ -326,8 +326,11 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
 
     g_free (filter);
 
-    if (!value)
-        g_printerr ("Failed to evaluate msDS-UserPasswordExpiryTimeComputed\n");
+    if (!value) {
+        g_warning ("The msDS-UserPasswordExpiryTimeComputed value is not set. Assume that the password does not expire\n");
+        close_ldap_conn (ld);
+        return VALUE_NOT_SET;
+    }
     else {
         GDateTime *res = NULL;
         if (get_date_from_ad_timestamp (value, &res)) {
@@ -335,7 +338,7 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
             g_free (value);
 
             close_ldap_conn (ld);
-            return TRUE;
+            return SUCCESS;
         }
         g_free (value);
     }
@@ -344,7 +347,7 @@ passwordchecker_ldap_get_date_time (PasswordcheckerLdap *self,
 
 close:
     close_ldap_conn (ld);
-    return FALSE;
+    return FAILED;
 }
 
 void
