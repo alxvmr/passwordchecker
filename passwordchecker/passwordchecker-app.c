@@ -37,6 +37,7 @@ passwordchecker_app_about_action (GSimpleAction *action,
     
     adw_show_about_dialog (GTK_WIDGET (window),
                            "application-name", "PasswordChecker",
+                           "application-icon", "org.altlinux.password-checker",
                            "version", VERSION,
                            "copyright", "Copyright (C) 2025 Maria O. Alexeeva\nalxvmr@altlinux.org",
                            "issue-url", "https://github.com/alxvmr/passwordchecker/issues",
