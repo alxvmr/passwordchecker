@@ -124,3 +124,9 @@ install (FILES ${GSCHEMA}
 
 install (FILES ${DESKTOP_FILE}
          DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+
+install(FILES data/icons/org.altlinux.password-checker.devel.svg
+              data/icons/org.altlinux.password-checker.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+install(FILES data/icons/org.altlinux.password-checker-symbolic.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/symbolic/apps)

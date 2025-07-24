@@ -95,6 +95,7 @@ EOF
 %_bindir/%daemon_name
 %_user_unitdir/%daemon_name-user.service
 %_datadir/glib-2.0/schemas/org.altlinux.%daemon_name.gschema.xml
+%_iconsdir/hicolor/*/*/*.svg
 
 %changelog
 * Mon Jul 14 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.1.0-alt1

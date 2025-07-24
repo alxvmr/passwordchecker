@@ -155,9 +155,9 @@ main (int     argc,
     bindtextdomain ("passwordchecker", "/usr/share/locale/");
     textdomain ("passwordchecker");
 
-    g_set_application_name ("PasswordChecker");
+    g_set_application_name ("password-checker");
 
-    PasswordcheckerApp *app = passwordchecker_app_new ("org.altlinux.PasswordChecker", G_APPLICATION_DEFAULT_FLAGS);
+    PasswordcheckerApp *app = passwordchecker_app_new ("org.altlinux.password-checker", G_APPLICATION_DEFAULT_FLAGS);
     
     int status = 0;
     status = g_application_run (G_APPLICATION (app), argc, argv);
