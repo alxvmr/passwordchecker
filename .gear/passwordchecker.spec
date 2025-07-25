@@ -6,7 +6,7 @@
 
 Name:    password-checker
 Version: 0.1.0
-Release: alt1
+Release: alt1.dbg1
 
 Summary: Password expiry notification application
 License: GPLv3
@@ -23,6 +23,7 @@ BuildRequires: libldap-devel libsasl2-devel libwbclient-devel
 # By default userpasswd is not included in dependencies,
 # it is left to the user's choice
 Requires: %name-common
+Requires: %name-service
 
 Source0: %name-%version.tar
 
@@ -30,12 +31,19 @@ Source0: %name-%version.tar
 GTK4 application for customizing password expiration notification settings
 
 %package common
-Summary: Translation files, .desktop and daemon for password-checker
+Summary: Translation files, .desktop and icons
 Group: System/Configuration/Other
-Requires: samba-winbind
 Requires: icon-theme-adwaita
 
 %description common
+%summary
+
+%package service
+Summary: Daemon for checking password expiration time
+Group: System/Configuration/Other
+Requires: samba-winbind
+
+%description service
 %summary
 
 %package gnome
@@ -43,6 +51,7 @@ Summary: A application on Adwaita to customize notification settings
 Group: System/Configuration/Other
 BuildRequires: pkgconfig(libadwaita-1)
 Requires: %name-common
+Requires: %name-service
 
 %description gnome
 %summary
@@ -90,14 +99,20 @@ EOF
 %_bindir/%name-adwaita
 %_altdir/%name-adwaita
 
-%files common -f %daemon_name.lang
-%_desktopdir/%app_name.desktop
+%files service -f passwordchecker.lang
 %_bindir/%daemon_name
 %_user_unitdir/%daemon_name-user.service
 %_datadir/glib-2.0/schemas/org.altlinux.%daemon_name.gschema.xml
+
+%files common -f passwordchecker.lang
+%_desktopdir/%app_name.desktop
 %_iconsdir/hicolor/*/*/*.svg
 
 %changelog
+* Fri Jul 25 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.1.0-alt1.dbg1
+- Move the passwordchecker daemon to a separate password-checker-service package
+- Add application icons
+
 * Mon Jul 14 2025 Maria Alexeeva <alxvmr@altlinux.org> 0.1.0-alt1
 - Rename package: PasswordCheckerSettings to password-checker
 - Add processing if the password never expires
