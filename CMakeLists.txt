@@ -1,8 +1,15 @@
 cmake_minimum_required(VERSION 3.12.0)
 
 #=====================
-project(passwordchecker VERSION 0.1.0 LANGUAGES C)
-set(VERSION 0.1.0)
+execute_process(
+		COMMAND /bin/sh -c "grep 'Version:' .gear/passwordchecker.spec | awk -F ':' '{ print $2 }' | tr -d [:space:]"
+		OUTPUT_VARIABLE GEAR_VERSION
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+string(REGEX REPLACE "-.*" "" VERSION ${GEAR_VERSION})
+
+project(passwordchecker VERSION ${VERSION} LANGUAGES C)
 #=====================
 
 include (GNUInstallDirs)
