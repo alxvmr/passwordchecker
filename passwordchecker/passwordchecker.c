@@ -55,8 +55,6 @@ cleanup (PasswordChecker *pwc)
 void
 on_run_subprocess (const gchar *command)
 {
-    GError *error = NULL;
-
     gchar *cmd = g_strdup_printf(
         "systemd-run --user --scope "
         "--slice=background.slice "
@@ -663,6 +661,8 @@ activate (PasswordChecker *pwc)
         send_fail_notification (_("Error receiving password data"), _("Unable to retrieve data from LDAP"), TRUE);
     }
     g_timeout_add_seconds (LDAP_SEARCH_TIME * 1440, check_password_with_notification, pwc->pwc_ldap);
+
+    return EXIT_SUCCESS;
 }
 
 int

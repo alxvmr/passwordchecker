@@ -16,18 +16,6 @@ enum {
     TO_DAYS
 };
 
-static void
-cleanup (PasswordcheckerWindow *self)
-{
-    // g_object_unref (pwd_ui->app);
-
-    if (self->settings) {
-        g_object_unref (self->settings);
-    }
-
-    g_free (self);
-}
-
 static gboolean
 convert_x (GValue   *value,
            GVariant *variant,
