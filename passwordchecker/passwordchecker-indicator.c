@@ -64,7 +64,7 @@ static void passwordchecker_indicator_init(PasswordcheckerIndicator *self) {
 }
 
 PasswordcheckerIndicator*
-passwordchecker_indicator_new (gchar *expiry_time)
+passwordchecker_indicator_new ()
 {
     PasswordcheckerIndicator *self = PASSWORDCHECKER_INDICATOR (g_object_new (PASSWORDCHECKER_TYPE_INDICATOR, NULL));
 
