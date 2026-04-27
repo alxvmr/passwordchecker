@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.12.0)
 
 #=====================
-project(passwordchecker VERSION 0.1.0 LANGUAGES C)
-set(VERSION 0.1.0)
+project(passwordchecker VERSION 0.1.1 LANGUAGES C)
+set(VERSION 0.1.1)
 #=====================
 
 include (GNUInstallDirs)
